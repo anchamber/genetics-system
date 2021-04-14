@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/anchamber/genetics-system/db"
-	pb "github.com/anchamber/genetics-system/genetics_system/proto"
+	pb "github.com/anchamber/genetics-system/proto"
 )
 
 var systemDB db.SystemDB = &db.SytemDBMock{}

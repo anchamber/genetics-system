@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 
-	pb "github.com/anchamber/genetics-system/genetics_system/proto"
+	pb "github.com/anchamber/genetics-system/proto"
 	"github.com/anchamber/genetics-system/server"
 	"google.golang.org/grpc"
 )
