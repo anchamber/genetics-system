@@ -5,5 +5,8 @@ import (
 )
 
 type SystemDB interface {
-	SelctAll() []*model.System
+	SelectAll() ([]*model.System, error)
+	SelectByName(name string) (*model.System, error)
+	Insert(system *model.System) error
+	Update(system *model.System) error
 }
