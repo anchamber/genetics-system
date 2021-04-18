@@ -10,3 +10,10 @@ type SystemDB interface {
 	Insert(system *model.System) error
 	Update(system *model.System) error
 }
+
+type ErrorCode string
+
+const (
+	SystemAlreadyExists ErrorCode = "system already exists"
+	Unknown             ErrorCode = "unknown error with db occured"
+)

@@ -2,11 +2,13 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 
 	"github.com/anchamber/genetics-system/db/model"
 )
@@ -25,9 +27,9 @@ var systems []*model.System = []*model.System{
 func NewMockDB() SytemDBMock {
 	mock := SytemDBMock{DB: initDB("test.sqlite")}
 
-	// for _, system := range systems {
-	// 	mock.Insert(system)
-	// }
+	for _, system := range systems {
+		mock.Insert(system)
+	}
 
 	return mock
 }
@@ -43,6 +45,7 @@ func (systemDB SytemDBMock) SelectAll() ([]*model.System, error) {
 	}
 
 	var data []*model.System
+	defer rows.Close()
 	for rows.Next() {
 		var entry model.System
 		err = rows.Scan(&entry.Name, &entry.Location, &entry.Type, &entry.CleaningInterval, &entry.LastCleaned)
@@ -71,6 +74,7 @@ func (systemDB SytemDBMock) SelectByName(name string) (*model.System, error) {
 	if !rows.Next() {
 		return nil, nil
 	}
+	defer rows.Close()
 	err = rows.Scan(&entry.Name, &entry.Location, &entry.Type, &entry.CleaningInterval, &entry.LastCleaned)
 	if err != nil {
 		return nil, err
@@ -80,6 +84,7 @@ func (systemDB SytemDBMock) SelectByName(name string) (*model.System, error) {
 }
 
 func (systemDB SytemDBMock) Insert(system *model.System) error {
+	var errorString string = ""
 	insertStatement := `
 		INSERT INTO systems (name, location, type, cleaning_interval, last_cleaned)
 			VALUES (?, ?, ?, ?, ?);
@@ -97,13 +102,31 @@ func (systemDB SytemDBMock) Insert(system *model.System) error {
 	}
 	defer statement.Close()
 
-	_, err = statement.Exec(system.Name, system.Location, system.Type, system.CleaningInterval, system.LastCleaned)
+	result, err := statement.Exec(system.Name, system.Location, system.Type, system.CleaningInterval, system.LastCleaned)
 	if err != nil {
 		fmt.Printf("failed to execute statement\n")
-		return err
+		if sqliteErr, ok := err.(sqlite3.Error); ok {
+			switch sqliteErr.Code {
+			case sqlite3.ErrConstraint:
+				errorString = string(SystemAlreadyExists)
+			default:
+				fmt.Printf("%v\n", sqliteErr)
+				errorString = string(Unknown)
+			}
+		} else {
+			fmt.Printf("%v\n", err.Error())
+			errorString = string(Unknown)
+		}
+		tx.Rollback()
+	} else {
+		numberCreated, _ := result.RowsAffected()
+		fmt.Printf("created %d entries\n", numberCreated)
+		tx.Commit()
 	}
-	tx.Commit()
-	return nil
+	if errorString == "" {
+		return nil
+	}
+	return errors.New(errorString)
 }
 
 func (systemDB SytemDBMock) Update(system *model.System) error {
@@ -135,6 +158,7 @@ func (systemDB SytemDBMock) Update(system *model.System) error {
 }
 
 func initDB(filepath string) *sql.DB {
+	os.Remove(filepath)
 	db, err := sql.Open("sqlite3", filepath)
 	if err != nil {
 		panic(err)

@@ -18,8 +18,8 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SystemServiceClient interface {
-	GetSystems(ctx context.Context, in *GetSystemsRequest, opts ...grpc.CallOption) (*GetSystemsResponse, error)
-	GetSystem(ctx context.Context, in *GetSystemRequest, opts ...grpc.CallOption) (*GetSystemResponse, error)
+	GetSystems(ctx context.Context, in *GetSystemsRequest, opts ...grpc.CallOption) (SystemService_GetSystemsClient, error)
+	GetSystem(ctx context.Context, in *GetSystemRequest, opts ...grpc.CallOption) (*SystemResponse, error)
 	CreateSystem(ctx context.Context, in *CreateSystemRequest, opts ...grpc.CallOption) (*CreateSystemResponse, error)
 	UpdateSystem(ctx context.Context, in *UpdateSystemRequest, opts ...grpc.CallOption) (*UpdateSystemResponse, error)
 	DeleteSystem(ctx context.Context, in *DeleteSystemRequest, opts ...grpc.CallOption) (*DeleteSystemResponse, error)
@@ -33,17 +33,40 @@ func NewSystemServiceClient(cc grpc.ClientConnInterface) SystemServiceClient {
 	return &systemServiceClient{cc}
 }
 
-func (c *systemServiceClient) GetSystems(ctx context.Context, in *GetSystemsRequest, opts ...grpc.CallOption) (*GetSystemsResponse, error) {
-	out := new(GetSystemsResponse)
-	err := c.cc.Invoke(ctx, "/genetics_system.SystemService/GetSystems", in, out, opts...)
+func (c *systemServiceClient) GetSystems(ctx context.Context, in *GetSystemsRequest, opts ...grpc.CallOption) (SystemService_GetSystemsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &SystemService_ServiceDesc.Streams[0], "/genetics_system.SystemService/GetSystems", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &systemServiceGetSystemsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
 
-func (c *systemServiceClient) GetSystem(ctx context.Context, in *GetSystemRequest, opts ...grpc.CallOption) (*GetSystemResponse, error) {
-	out := new(GetSystemResponse)
+type SystemService_GetSystemsClient interface {
+	Recv() (*SystemResponse, error)
+	grpc.ClientStream
+}
+
+type systemServiceGetSystemsClient struct {
+	grpc.ClientStream
+}
+
+func (x *systemServiceGetSystemsClient) Recv() (*SystemResponse, error) {
+	m := new(SystemResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *systemServiceClient) GetSystem(ctx context.Context, in *GetSystemRequest, opts ...grpc.CallOption) (*SystemResponse, error) {
+	out := new(SystemResponse)
 	err := c.cc.Invoke(ctx, "/genetics_system.SystemService/GetSystem", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -82,8 +105,8 @@ func (c *systemServiceClient) DeleteSystem(ctx context.Context, in *DeleteSystem
 // All implementations must embed UnimplementedSystemServiceServer
 // for forward compatibility
 type SystemServiceServer interface {
-	GetSystems(context.Context, *GetSystemsRequest) (*GetSystemsResponse, error)
-	GetSystem(context.Context, *GetSystemRequest) (*GetSystemResponse, error)
+	GetSystems(*GetSystemsRequest, SystemService_GetSystemsServer) error
+	GetSystem(context.Context, *GetSystemRequest) (*SystemResponse, error)
 	CreateSystem(context.Context, *CreateSystemRequest) (*CreateSystemResponse, error)
 	UpdateSystem(context.Context, *UpdateSystemRequest) (*UpdateSystemResponse, error)
 	DeleteSystem(context.Context, *DeleteSystemRequest) (*DeleteSystemResponse, error)
@@ -94,10 +117,10 @@ type SystemServiceServer interface {
 type UnimplementedSystemServiceServer struct {
 }
 
-func (UnimplementedSystemServiceServer) GetSystems(context.Context, *GetSystemsRequest) (*GetSystemsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSystems not implemented")
+func (UnimplementedSystemServiceServer) GetSystems(*GetSystemsRequest, SystemService_GetSystemsServer) error {
+	return status.Errorf(codes.Unimplemented, "method GetSystems not implemented")
 }
-func (UnimplementedSystemServiceServer) GetSystem(context.Context, *GetSystemRequest) (*GetSystemResponse, error) {
+func (UnimplementedSystemServiceServer) GetSystem(context.Context, *GetSystemRequest) (*SystemResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSystem not implemented")
 }
 func (UnimplementedSystemServiceServer) CreateSystem(context.Context, *CreateSystemRequest) (*CreateSystemResponse, error) {
@@ -122,22 +145,25 @@ func RegisterSystemServiceServer(s grpc.ServiceRegistrar, srv SystemServiceServe
 	s.RegisterService(&SystemService_ServiceDesc, srv)
 }
 
-func _SystemService_GetSystems_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetSystemsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _SystemService_GetSystems_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GetSystemsRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(SystemServiceServer).GetSystems(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/genetics_system.SystemService/GetSystems",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SystemServiceServer).GetSystems(ctx, req.(*GetSystemsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(SystemServiceServer).GetSystems(m, &systemServiceGetSystemsServer{stream})
+}
+
+type SystemService_GetSystemsServer interface {
+	Send(*SystemResponse) error
+	grpc.ServerStream
+}
+
+type systemServiceGetSystemsServer struct {
+	grpc.ServerStream
+}
+
+func (x *systemServiceGetSystemsServer) Send(m *SystemResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _SystemService_GetSystem_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -220,10 +246,6 @@ var SystemService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*SystemServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetSystems",
-			Handler:    _SystemService_GetSystems_Handler,
-		},
-		{
 			MethodName: "GetSystem",
 			Handler:    _SystemService_GetSystem_Handler,
 		},
@@ -240,6 +262,12 @@ var SystemService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _SystemService_DeleteSystem_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "GetSystems",
+			Handler:       _SystemService_GetSystems_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "system.proto",
 }
