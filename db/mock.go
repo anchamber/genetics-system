@@ -1,20 +1,21 @@
 package db
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/mattn/go-sqlite3"
 
+	apiModel "github.com/anchamber/genetics-api/model"
 	"github.com/anchamber/genetics-system/db/model"
 )
 
 type SytemDBMock struct {
-	DB *sql.DB
+	DB *sqlx.DB
 }
 
 var systems []*model.System = []*model.System{
@@ -34,18 +35,73 @@ func NewMockDB() SytemDBMock {
 	return mock
 }
 
-func (systemDB SytemDBMock) SelectAll() ([]*model.System, error) {
-	selectStatement := `
-		SELECT name, location, type, cleaning_interval, last_cleaned FROM systems;
-	`
-	rows, err := systemDB.DB.Query(selectStatement)
+func (o *Options) createPaginationClause() string {
+	if o.Pageination == nil {
+		return ""
+	}
+	var limit int64 = int64(o.Pageination.Limit)
+	if limit <= 0 {
+		limit = -1
+	}
+	return fmt.Sprintf("LIMIT %d OFFSET %d", limit, o.Pageination.Offset)
+}
+
+func getOperatorAsString(operator apiModel.Operator) string {
+	switch operator {
+	case apiModel.EQ:
+		return "="
+	case apiModel.GREATER:
+		return ">"
+	case apiModel.GREATER_EQ:
+		return ">="
+	case apiModel.SMALLLER:
+		return "<"
+	case apiModel.SMALLER_EQ:
+		return "<="
+	case apiModel.CONTAINS:
+		return "LIKE"
+	default:
+		return "="
+	}
+}
+
+func (o *Options) createFilterClause() string {
+	if len(o.Filters) == 0 {
+		return ""
+	}
+	whereClause := "WHERE "
+
+	for index, filter := range o.Filters {
+		if index > 0 {
+			whereClause += " AND "
+		}
+		whereClause += fmt.Sprintf("%s %v :%s", filter.Key, getOperatorAsString(filter.Operator), filter.Key)
+	}
+	fmt.Println(whereClause)
+	return whereClause
+}
+
+func (o *Options) createFilterMap() map[string]interface{} {
+	values := make(map[string]interface{})
+	for _, filter := range o.Filters {
+		values[filter.Key] = filter.Value
+	}
+	return values
+}
+
+func (systemDB SytemDBMock) Select(options Options) ([]*model.System, error) {
+	selectStatement := fmt.Sprintf("SELECT name, location, type, cleaning_interval, last_cleaned FROM systems %s %s;", options.createFilterClause(), options.createPaginationClause())
+	fmt.Println(selectStatement)
+	filterValues := options.createFilterMap()
+	rows, err := systemDB.DB.NamedQuery(selectStatement, filterValues)
 	if err != nil {
+		fmt.Printf("%v\n", err)
 		log.Fatalf(`failed to select all`)
 		return nil, err
 	}
 
-	var data []*model.System
 	defer rows.Close()
+	var data []*model.System
 	for rows.Next() {
 		var entry model.System
 		err = rows.Scan(&entry.Name, &entry.Location, &entry.Type, &entry.CleaningInterval, &entry.LastCleaned)
@@ -157,9 +213,9 @@ func (systemDB SytemDBMock) Update(system *model.System) error {
 	return nil
 }
 
-func initDB(filepath string) *sql.DB {
+func initDB(filepath string) *sqlx.DB {
 	os.Remove(filepath)
-	db, err := sql.Open("sqlite3", filepath)
+	db, err := sqlx.Connect("sqlite3", filepath)
 	if err != nil {
 		panic(err)
 	}
@@ -170,11 +226,7 @@ func initDB(filepath string) *sql.DB {
 	return db
 }
 
-func CreateTables(db *sql.DB) error {
-	if err := db.Ping(); err != nil {
-		log.Fatalf("failed to ping db\n")
-		return err
-	}
+func CreateTables(db *sqlx.DB) error {
 
 	systemTable := `
 		CREATE TABLE IF NOT EXISTS systems(
@@ -194,11 +246,7 @@ func CreateTables(db *sql.DB) error {
 	return nil
 }
 
-func CreateIndexes(db *sql.DB) error {
-	if err := db.Ping(); err != nil {
-		log.Fatalf("failed to ping db\n")
-		return err
-	}
+func CreateIndexes(db *sqlx.DB) error {
 
 	systemIndex := `
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_system_name ON systems(name);

@@ -3,11 +3,11 @@ package model
 import "time"
 
 type System struct {
-	Name             string
-	Location         string
-	Type             SystemType
-	CleaningInterval int32
-	LastCleaned      time.Time
+	Name             string     `db:"name"`
+	Location         string     `db:"location"`
+	Type             SystemType `db:"type"`
+	CleaningInterval int32      `db:"cleaning_interval"`
+	LastCleaned      time.Time  `db:"last_cleaned"`
 }
 
 type SystemType int32

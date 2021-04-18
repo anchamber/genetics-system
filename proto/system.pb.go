@@ -7,7 +7,7 @@
 package proto
 
 import (
-	api "github.com/anchamber/genetics-api/api"
+	proto "github.com/anchamber/genetics-api/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -160,8 +160,8 @@ type GetSystemsRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Filters     []*api.Filter   `protobuf:"bytes,1,rep,name=filters,proto3" json:"filters,omitempty"`
-	Pageination *api.Pagination `protobuf:"bytes,2,opt,name=pageination,proto3" json:"pageination,omitempty"`
+	Filters     []*proto.Filter   `protobuf:"bytes,1,rep,name=filters,proto3" json:"filters,omitempty"`
+	Pageination *proto.Pagination `protobuf:"bytes,2,opt,name=pageination,proto3" json:"pageination,omitempty"`
 }
 
 func (x *GetSystemsRequest) Reset() {
@@ -196,14 +196,14 @@ func (*GetSystemsRequest) Descriptor() ([]byte, []int) {
 	return file_system_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *GetSystemsRequest) GetFilters() []*api.Filter {
+func (x *GetSystemsRequest) GetFilters() []*proto.Filter {
 	if x != nil {
 		return x.Filters
 	}
 	return nil
 }
 
-func (x *GetSystemsRequest) GetPageination() *api.Pagination {
+func (x *GetSystemsRequest) GetPageination() *proto.Pagination {
 	if x != nil {
 		return x.Pageination
 	}
@@ -785,8 +785,8 @@ var file_system_proto_goTypes = []interface{}{
 	(*UpdateSystemResponse)(nil), // 9: genetics_system.UpdateSystemResponse
 	(*DeleteSystemRequest)(nil),  // 10: genetics_system.DeleteSystemRequest
 	(*DeleteSystemResponse)(nil), // 11: genetics_system.DeleteSystemResponse
-	(*api.Filter)(nil),           // 12: api.Filter
-	(*api.Pagination)(nil),       // 13: api.Pagination
+	(*proto.Filter)(nil),         // 12: api.Filter
+	(*proto.Pagination)(nil),     // 13: api.Pagination
 }
 var file_system_proto_depIdxs = []int32{
 	1,  // 0: genetics_system.Systems.systems:type_name -> genetics_system.System

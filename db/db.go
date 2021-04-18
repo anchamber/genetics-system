@@ -1,11 +1,17 @@
 package db
 
 import (
+	apiModel "github.com/anchamber/genetics-api/model"
 	"github.com/anchamber/genetics-system/db/model"
 )
 
+type Options struct {
+	Pageination *apiModel.Pageination
+	Filters     []*apiModel.Filter
+}
+
 type SystemDB interface {
-	SelectAll() ([]*model.System, error)
+	Select(Options) ([]*model.System, error)
 	SelectByName(name string) (*model.System, error)
 	Insert(system *model.System) error
 	Update(system *model.System) error

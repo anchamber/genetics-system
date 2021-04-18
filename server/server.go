@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	apiModel "github.com/anchamber/genetics-api/model"
 	"github.com/anchamber/genetics-system/db"
 	"github.com/anchamber/genetics-system/db/model"
 	pb "github.com/anchamber/genetics-system/proto"
@@ -21,7 +22,25 @@ type SystemService struct {
 
 func (s *SystemService) GetSystems(in *pb.GetSystemsRequest, stream pb.SystemService_GetSystemsServer) error {
 	log.Printf("GET: received with %d filters\n", len(in.Filters))
-	data, _ := systemDB.SelectAll()
+	var paginationSettings *apiModel.Pageination
+	if in.Pageination != nil {
+		paginationSettings = &apiModel.Pageination{
+			Limit:  in.Pageination.Limit,
+			Offset: in.Pageination.Offset,
+		}
+	}
+
+	var filterSettings []*apiModel.Filter
+	if in.Filters != nil {
+		for _, filter := range in.Filters {
+			filterSettings = append(filterSettings, apiModel.NewFilterFromProto(filter))
+		}
+	}
+
+	data, _ := systemDB.Select(db.Options{
+		Pageination: paginationSettings,
+		Filters:     filterSettings,
+	})
 	for _, system := range data {
 		if err := stream.Send(mapToProto(system)); err != nil {
 			fmt.Printf("%v\n", err)
@@ -92,16 +111,6 @@ func mapToProto(system *model.System) *pb.SystemResponse {
 		Type:             pb.SystemType(system.Type),
 		CleaningInterval: system.CleaningInterval,
 		LastCleaned:      system.LastCleaned.Unix(),
-	}
-}
-
-func mapFromProto(system *pb.SystemResponse) *model.System {
-	return &model.System{
-		Name:             system.Name,
-		Location:         system.Location,
-		Type:             model.SystemType(system.Type),
-		CleaningInterval: system.CleaningInterval,
-		LastCleaned:      time.Unix(system.LastCleaned, 0),
 	}
 }
 
