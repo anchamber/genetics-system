@@ -6,8 +6,9 @@ import (
 	"log"
 	"net"
 
+	"github.com/anchamber/genetics-system/db"
 	pb "github.com/anchamber/genetics-system/proto"
-	"github.com/anchamber/genetics-system/server"
+	"github.com/anchamber/genetics-system/service"
 	"google.golang.org/grpc"
 )
 
@@ -23,7 +24,7 @@ func main() {
 		log.Fatalln("Failed to listen:", err)
 	}
 	s := grpc.NewServer()
-	pb.RegisterSystemServiceServer(s, server.New())
+	pb.RegisterSystemServiceServer(s, service.New(db.NewMockDB()))
 
 	// Serve gRPC Server
 	fmt.Printf("Serving gRPC on https://%s\n", addr)

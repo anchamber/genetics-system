@@ -1,4 +1,4 @@
-package server
+package service
 
 import (
 	"context"
@@ -14,10 +14,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var systemDB db.SystemDB = db.NewMockDB()
-
 type SystemService struct {
 	pb.UnimplementedSystemServiceServer
+	db db.SystemDB
 }
 
 func (s *SystemService) GetSystems(in *pb.GetSystemsRequest, stream pb.SystemService_GetSystemsServer) error {
@@ -37,7 +36,7 @@ func (s *SystemService) GetSystems(in *pb.GetSystemsRequest, stream pb.SystemSer
 		}
 	}
 
-	data, _ := systemDB.Select(db.Options{
+	data, _ := s.db.Select(db.Options{
 		Pageination: paginationSettings,
 		Filters:     filterSettings,
 	})
@@ -52,7 +51,7 @@ func (s *SystemService) GetSystems(in *pb.GetSystemsRequest, stream pb.SystemSer
 
 func (s *SystemService) GetSystem(ctx context.Context, in *pb.GetSystemRequest) (*pb.SystemResponse, error) {
 	log.Printf("GET: received for %s\n", in.Name)
-	system, error := systemDB.SelectByName(in.Name)
+	system, error := s.db.SelectByName(in.Name)
 	if error != nil {
 		log.Panic(error)
 	}
@@ -74,7 +73,7 @@ func (s *SystemService) CreateSystem(ctx context.Context, in *pb.CreateSystemReq
 		CleaningInterval: in.CleaningInterval,
 		LastCleaned:      time.Unix(in.LastCleaned, 0),
 	}
-	err := systemDB.Insert(system)
+	err := s.db.Insert(system)
 	if err != nil {
 		switch err.Error() {
 		case string(db.SystemAlreadyExists):
@@ -95,7 +94,7 @@ func (s *SystemService) UpdateSystem(ctx context.Context, in *pb.UpdateSystemReq
 		CleaningInterval: in.CleaningInterval,
 		LastCleaned:      time.Unix(in.LastCleaned, 0),
 	}
-	systemDB.Update(system)
+	s.db.Update(system)
 	return &pb.UpdateSystemResponse{}, nil
 }
 
@@ -114,6 +113,8 @@ func mapToProto(system *model.System) *pb.SystemResponse {
 	}
 }
 
-func New() *SystemService {
-	return &SystemService{}
+func New(db db.SystemDB) *SystemService {
+	return &SystemService{
+		db: db,
+	}
 }

@@ -18,7 +18,7 @@ type SytemDBMock struct {
 	DB *sqlx.DB
 }
 
-var systems []*model.System = []*model.System{
+var MockDataSystems []*model.System = []*model.System{
 	{Name: "doctor", Location: "tardis", Type: model.Techniplast, CleaningInterval: 90, LastCleaned: time.Now()},
 	{Name: "rick", Location: "c-137", Type: model.Techniplast, CleaningInterval: 90, LastCleaned: time.Now()},
 	{Name: "morty", Location: "herry-herpson", Type: model.Techniplast, CleaningInterval: 90, LastCleaned: time.Now()},
@@ -28,7 +28,7 @@ var systems []*model.System = []*model.System{
 func NewMockDB() SytemDBMock {
 	mock := SytemDBMock{DB: initDB("test.sqlite")}
 
-	for _, system := range systems {
+	for _, system := range MockDataSystems {
 		mock.Insert(system)
 	}
 
@@ -215,7 +215,7 @@ func (systemDB SytemDBMock) Update(system *model.System) error {
 
 func initDB(filepath string) *sqlx.DB {
 	os.Remove(filepath)
-	db, err := sqlx.Connect("sqlite3", filepath)
+	db, err := sqlx.Connect("sqlite3", ":memory:")
 	if err != nil {
 		panic(err)
 	}
