@@ -95,6 +95,20 @@ func TestGetSystems(t *testing.T) {
 			},
 			expectedError: false,
 		},
+		{
+			name: "request with invalid filter key",
+			request: &systemProto.GetSystemsRequest{
+				Filters: []*apiProto.Filter{
+					{
+						Key:      "nme",
+						Operator: apiProto.Operator_CONTAINS,
+						Value:    &apiProto.Filter_S{S: db.MockDataSystems[2].Name},
+					},
+				},
+			},
+			responses:     db.MockDataSystems,
+			expectedError: false,
+		},
 	}
 
 	for _, tc := range testCases {

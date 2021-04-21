@@ -19,6 +19,10 @@ type SystemService struct {
 	db db.SystemDB
 }
 
+var filterKeys []string = []string{
+	"id", "name", "location", "type", "responsible", "cleaning_interval", "last_cleaned",
+}
+
 func (s *SystemService) GetSystems(in *pb.GetSystemsRequest, stream pb.SystemService_GetSystemsServer) error {
 	log.Printf("GET: received with %d filters\n", len(in.Filters))
 	var paginationSettings *apiModel.Pageination
@@ -32,7 +36,13 @@ func (s *SystemService) GetSystems(in *pb.GetSystemsRequest, stream pb.SystemSer
 	var filterSettings []*apiModel.Filter
 	if in.Filters != nil {
 		for _, filter := range in.Filters {
-			filterSettings = append(filterSettings, apiModel.NewFilterFromProto(filter))
+			for _, fk := range filterKeys {
+				if fk == filter.Key {
+					filterSettings = append(filterSettings, apiModel.NewFilterFromProto(filter))
+				} else {
+					fmt.Printf("invalid filter key '%s' will be ignored", filter.Key)
+				}
+			}
 		}
 	}
 
@@ -117,4 +127,13 @@ func New(db db.SystemDB) *SystemService {
 	return &SystemService{
 		db: db,
 	}
+}
+
+func in(slice []string, key string) bool {
+	for _, e := range slice {
+		if e == key {
+			return true
+		}
+	}
+	return false
 }
