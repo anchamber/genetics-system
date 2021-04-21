@@ -18,10 +18,10 @@ type SytemDBMock struct {
 }
 
 var MockDataSystems []*model.System = []*model.System{
-	{Name: "doctor", Location: "tardis", Type: model.Techniplast, CleaningInterval: 90, LastCleaned: time.Now()},
-	{Name: "rick", Location: "c-137", Type: model.Techniplast, CleaningInterval: 90, LastCleaned: time.Now()},
-	{Name: "morty", Location: "herry-herpson", Type: model.Techniplast, CleaningInterval: 90, LastCleaned: time.Now()},
-	{Name: "obi", Location: "high_ground", Type: model.Techniplast, CleaningInterval: 90, LastCleaned: time.Now()},
+	{Name: "doctor", Location: "tardis", Type: model.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
+	{Name: "rick", Location: "c-137", Type: model.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
+	{Name: "morty", Location: "herry-herpson", Type: model.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
+	{Name: "obi", Location: "high_ground", Type: model.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
 }
 
 func NewMockDB(initialData []*model.System) SytemDBMock {
@@ -79,7 +79,12 @@ func (o *Options) createFilterClause() string {
 		if index > 0 {
 			whereClause += " AND "
 		}
-		whereClause += fmt.Sprintf("%s %v :%s", filter.Key, getOperatorAsString(filter.Operator), filter.Key)
+
+		if filter.Operator == apiModel.CONTAINS {
+			whereClause += fmt.Sprintf("instr(%s, :%s) > 0", filter.Key, filter.Key)
+		} else {
+			whereClause += fmt.Sprintf("%s %v :%s", filter.Key, getOperatorAsString(filter.Operator), filter.Key)
+		}
 	}
 	// fmt.Println(whereClause)
 	return whereClause
@@ -94,7 +99,7 @@ func (o *Options) createFilterMap() map[string]interface{} {
 }
 
 func (systemDB SytemDBMock) Select(options Options) ([]*model.System, error) {
-	selectStatement := fmt.Sprintf("SELECT name, location, type, cleaning_interval, last_cleaned FROM systems %s %s;", options.createFilterClause(), options.createPaginationClause())
+	selectStatement := fmt.Sprintf("SELECT id, name, location, type, responsible, cleaning_interval, last_cleaned FROM systems %s %s;", options.createFilterClause(), options.createPaginationClause())
 	// fmt.Println(selectStatement)
 	filterValues := options.createFilterMap()
 	rows, err := systemDB.DB.NamedQuery(selectStatement, filterValues)
@@ -108,7 +113,7 @@ func (systemDB SytemDBMock) Select(options Options) ([]*model.System, error) {
 	var data []*model.System
 	for rows.Next() {
 		var entry model.System
-		err = rows.Scan(&entry.Name, &entry.Location, &entry.Type, &entry.CleaningInterval, &entry.LastCleaned)
+		err = rows.Scan(&entry.ID, &entry.Name, &entry.Location, &entry.Type, &entry.Responsible, &entry.CleaningInterval, &entry.LastCleaned)
 		if err != nil {
 			return nil, err
 		}
@@ -146,8 +151,8 @@ func (systemDB SytemDBMock) SelectByName(name string) (*model.System, error) {
 func (systemDB SytemDBMock) Insert(system *model.System) error {
 	var errorString string = ""
 	insertStatement := `
-		INSERT INTO systems (name, location, type, cleaning_interval, last_cleaned)
-			VALUES (?, ?, ?, ?, ?);
+		INSERT INTO systems (name, location, type, responsible, cleaning_interval, last_cleaned)
+			VALUES (?, ?, ?, ?, ?, ?);
 	`
 	tx, err := systemDB.DB.Begin()
 	if err != nil {
@@ -162,7 +167,7 @@ func (systemDB SytemDBMock) Insert(system *model.System) error {
 	}
 	defer statement.Close()
 
-	_, err = statement.Exec(system.Name, system.Location, system.Type, system.CleaningInterval, system.LastCleaned)
+	_, err = statement.Exec(system.Name, system.Location, system.Type, system.Responsible, system.CleaningInterval, system.LastCleaned)
 	if err != nil {
 		fmt.Printf("failed to execute statement\n")
 		if sqliteErr, ok := err.(sqlite3.Error); ok {
@@ -233,9 +238,11 @@ func CreateTables(db *sqlx.DB) error {
 
 	systemTable := `
 		CREATE TABLE IF NOT EXISTS systems(
-			name							TEXT		PRIMARY KEY NOT NULL,
+			id								INTEGER	PRIMARY KEY AUTOINCREMENT,
+			name							TEXT		UNIQUE NOT NULL,
 			location					TEXT,
 			type							TEXT,
+			responsible				TEXT,
 			cleaning_interval INT,
 			last_cleaned			DATE
 		);
