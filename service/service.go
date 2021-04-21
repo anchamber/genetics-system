@@ -128,12 +128,3 @@ func New(db db.SystemDB) *SystemService {
 		db: db,
 	}
 }
-
-func in(slice []string, key string) bool {
-	for _, e := range slice {
-		if e == key {
-			return true
-		}
-	}
-	return false
-}
