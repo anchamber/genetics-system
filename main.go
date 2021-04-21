@@ -24,7 +24,7 @@ func main() {
 		log.Fatalln("Failed to listen:", err)
 	}
 	s := grpc.NewServer()
-	pb.RegisterSystemServiceServer(s, service.New(db.NewMockDB()))
+	pb.RegisterSystemServiceServer(s, service.New(db.NewMockDB(nil)))
 
 	// Serve gRPC Server
 	fmt.Printf("Serving gRPC on https://%s\n", addr)

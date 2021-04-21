@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -25,10 +24,15 @@ var MockDataSystems []*model.System = []*model.System{
 	{Name: "obi", Location: "high_ground", Type: model.Techniplast, CleaningInterval: 90, LastCleaned: time.Now()},
 }
 
-func NewMockDB() SytemDBMock {
-	mock := SytemDBMock{DB: initDB("test.sqlite")}
+func NewMockDB(initialData []*model.System) SytemDBMock {
+	if initialData == nil {
+		initialData = MockDataSystems
+	}
+	mock := SytemDBMock{
+		DB: initDB(),
+	}
 
-	for _, system := range MockDataSystems {
+	for _, system := range initialData {
 		mock.Insert(system)
 	}
 
@@ -77,7 +81,7 @@ func (o *Options) createFilterClause() string {
 		}
 		whereClause += fmt.Sprintf("%s %v :%s", filter.Key, getOperatorAsString(filter.Operator), filter.Key)
 	}
-	fmt.Println(whereClause)
+	// fmt.Println(whereClause)
 	return whereClause
 }
 
@@ -91,7 +95,7 @@ func (o *Options) createFilterMap() map[string]interface{} {
 
 func (systemDB SytemDBMock) Select(options Options) ([]*model.System, error) {
 	selectStatement := fmt.Sprintf("SELECT name, location, type, cleaning_interval, last_cleaned FROM systems %s %s;", options.createFilterClause(), options.createPaginationClause())
-	fmt.Println(selectStatement)
+	// fmt.Println(selectStatement)
 	filterValues := options.createFilterMap()
 	rows, err := systemDB.DB.NamedQuery(selectStatement, filterValues)
 	if err != nil {
@@ -213,8 +217,7 @@ func (systemDB SytemDBMock) Update(system *model.System) error {
 	return nil
 }
 
-func initDB(filepath string) *sqlx.DB {
-	os.Remove(filepath)
+func initDB() *sqlx.DB {
 	db, err := sqlx.Connect("sqlite3", ":memory:")
 	if err != nil {
 		panic(err)

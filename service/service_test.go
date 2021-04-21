@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"testing"
+	"time"
 
 	apiProto "github.com/anchamber/genetics-api/proto"
 	"github.com/anchamber/genetics-system/db"
@@ -10,6 +11,13 @@ import (
 	"github.com/anchamber/genetics-system/service"
 	grpc "google.golang.org/grpc"
 )
+
+var testData []*sm.System = []*sm.System{
+	{Name: "doctor", Location: "tardis", Type: sm.Techniplast, CleaningInterval: 90, LastCleaned: time.Now()},
+	{Name: "rick", Location: "c-137", Type: sm.Techniplast, CleaningInterval: 90, LastCleaned: time.Now()},
+	{Name: "morty", Location: "herry-herpson", Type: sm.Techniplast, CleaningInterval: 90, LastCleaned: time.Now()},
+	{Name: "obi", Location: "high_ground", Type: sm.Techniplast, CleaningInterval: 90, LastCleaned: time.Now()},
+}
 
 func TestGetSystems(t *testing.T) {
 	testCases := []struct {
@@ -44,6 +52,49 @@ func TestGetSystems(t *testing.T) {
 			responses:     db.MockDataSystems[2:],
 			expectedError: false,
 		},
+		{
+			name: "request with offset and limit",
+			request: &systemProto.GetSystemsRequest{
+				Pageination: &apiProto.Pagination{
+					Offset: 2,
+					Limit:  1,
+				},
+			},
+			responses:     db.MockDataSystems[2:3],
+			expectedError: false,
+		},
+		{
+			name: "request with name filter EQ",
+			request: &systemProto.GetSystemsRequest{
+				Filters: []*apiProto.Filter{
+					{
+						Key:      "name",
+						Operator: apiProto.Operator_EQ,
+						Value:    &apiProto.Filter_S{S: db.MockDataSystems[1].Name},
+					},
+				},
+			},
+			responses: []*sm.System{
+				db.MockDataSystems[1],
+			},
+			expectedError: false,
+		},
+		{
+			name: "request with name filter CONTAINS",
+			request: &systemProto.GetSystemsRequest{
+				Filters: []*apiProto.Filter{
+					{
+						Key:      "name",
+						Operator: apiProto.Operator_CONTAINS,
+						Value:    &apiProto.Filter_S{S: db.MockDataSystems[2].Name[1:4]},
+					},
+				},
+			},
+			responses: []*sm.System{
+				db.MockDataSystems[2],
+			},
+			expectedError: false,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -51,7 +102,7 @@ func TestGetSystems(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			t.Log(tc.responses)
-			systemServer := service.New(db.NewMockDB())
+			systemServer := service.New(db.NewMockDB(testData))
 			sericeMock := MockSystemService{
 				t:         t,
 				responses: tc.responses,
