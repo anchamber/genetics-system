@@ -158,7 +158,7 @@ func (systemDB SytemDBMock) Insert(system *model.System) error {
 	}
 	defer statement.Close()
 
-	result, err := statement.Exec(system.Name, system.Location, system.Type, system.CleaningInterval, system.LastCleaned)
+	_, err = statement.Exec(system.Name, system.Location, system.Type, system.CleaningInterval, system.LastCleaned)
 	if err != nil {
 		fmt.Printf("failed to execute statement\n")
 		if sqliteErr, ok := err.(sqlite3.Error); ok {
@@ -175,8 +175,8 @@ func (systemDB SytemDBMock) Insert(system *model.System) error {
 		}
 		tx.Rollback()
 	} else {
-		numberCreated, _ := result.RowsAffected()
-		fmt.Printf("created %d entries\n", numberCreated)
+		// numberCreated, _ := result.RowsAffected()
+		// fmt.Printf("created %d entries\n", numberCreated)
 		tx.Commit()
 	}
 	if errorString == "" {
