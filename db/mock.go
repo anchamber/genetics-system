@@ -58,7 +58,7 @@ func getOperatorAsString(operator apiModel.Operator) string {
 		return ">"
 	case apiModel.GREATER_EQ:
 		return ">="
-	case apiModel.SMALLLER:
+	case apiModel.SMALLER:
 		return "<"
 	case apiModel.SMALLER_EQ:
 		return "<="
