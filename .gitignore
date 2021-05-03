@@ -1,4 +1,5 @@
 .vscode/
+.idea/
 
 *.sqlite
 __debug_bin
