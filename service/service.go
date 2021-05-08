@@ -19,7 +19,7 @@ type SystemService struct {
 	db db.SystemDB
 }
 
-var filterKeys []string = []string{
+var filterKeys = []string{
 	"id", "name", "location", "type", "responsible", "cleaning_interval", "last_cleaned",
 }
 
@@ -36,12 +36,16 @@ func (s *SystemService) GetSystems(in *pb.GetSystemsRequest, stream pb.SystemSer
 	var filterSettings []*apiModel.Filter
 	if in.Filters != nil {
 		for _, filter := range in.Filters {
+			found := false
 			for _, fk := range filterKeys {
 				if fk == filter.Key {
 					filterSettings = append(filterSettings, apiModel.NewFilterFromProto(filter))
-				} else {
-					fmt.Printf("invalid filter key '%s' will be ignored", filter.Key)
+					found = true
+					break
 				}
+			}
+			if !found {
+				fmt.Printf("invalid filter key '%s' will be ignored\n", filter.Key)
 			}
 		}
 	}
@@ -59,19 +63,19 @@ func (s *SystemService) GetSystems(in *pb.GetSystemsRequest, stream pb.SystemSer
 	return nil
 }
 
-func (s *SystemService) GetSystem(ctx context.Context, in *pb.GetSystemRequest) (*pb.SystemResponse, error) {
+func (s *SystemService) GetSystem(_ context.Context, in *pb.GetSystemRequest) (*pb.SystemResponse, error) {
 	log.Printf("GET: received for %s\n", in.Name)
-	system, error := s.db.SelectByName(in.Name)
-	if error != nil {
-		log.Panic(error)
+	system, err := s.db.SelectByName(in.Name)
+	if err != nil {
+		log.Panic(err)
 	}
 	if system == nil {
-		return nil, status.Error(codes.NotFound, "no system with name found")
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("no system with name '%s' found", in.Name))
 	}
 	return mapToProto(system), nil
 }
 
-func (s *SystemService) CreateSystem(ctx context.Context, in *pb.CreateSystemRequest) (*pb.CreateSystemResponse, error) {
+func (s *SystemService) CreateSystem(_ context.Context, in *pb.CreateSystemRequest) (*pb.CreateSystemResponse, error) {
 	log.Printf("CREATE: received for %v\n", in)
 	if in.Name == "" {
 		return nil, status.Error(codes.InvalidArgument, "request needs to contain valid name")
@@ -95,7 +99,7 @@ func (s *SystemService) CreateSystem(ctx context.Context, in *pb.CreateSystemReq
 	return &pb.CreateSystemResponse{}, nil
 }
 
-func (s *SystemService) UpdateSystem(ctx context.Context, in *pb.UpdateSystemRequest) (*pb.UpdateSystemResponse, error) {
+func (s *SystemService) UpdateSystem(_ context.Context, in *pb.UpdateSystemRequest) (*pb.UpdateSystemResponse, error) {
 	log.Printf("UPDATE: received for %v\n", in)
 	system := &model.System{
 		Name:             in.Name,
@@ -104,11 +108,14 @@ func (s *SystemService) UpdateSystem(ctx context.Context, in *pb.UpdateSystemReq
 		CleaningInterval: in.CleaningInterval,
 		LastCleaned:      time.Unix(in.LastCleaned, 0),
 	}
-	s.db.Update(system)
+	err := s.db.Update(system)
+	if err != nil {
+		return nil, err
+	}
 	return &pb.UpdateSystemResponse{}, nil
 }
 
-func (s *SystemService) DeleteSystem(ctx context.Context, in *pb.DeleteSystemRequest) (*pb.DeleteSystemResponse, error) {
+func (s *SystemService) DeleteSystem(_ context.Context, in *pb.DeleteSystemRequest) (*pb.DeleteSystemResponse, error) {
 	log.Printf("DEL: received for %s\n", in.Name)
 	return &pb.DeleteSystemResponse{}, nil
 }

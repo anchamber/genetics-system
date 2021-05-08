@@ -1,6 +1,9 @@
 package service_test
 
 import (
+	"context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"testing"
 	"time"
 
@@ -12,7 +15,7 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-var testData []*sm.System = []*sm.System{
+var testData = []*sm.System{
 	{Name: "doctor", Location: "tardis", Type: sm.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
 	{Name: "rick", Location: "c-137", Type: sm.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
 	{Name: "morty", Location: "herry-herpson", Type: sm.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
@@ -111,12 +114,12 @@ func TestGetSystems(t *testing.T) {
 		},
 	}
 
+	systemServer := service.New(db.NewMockDB(testData))
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			t.Log(tc.responses)
-			systemServer := service.New(db.NewMockDB(testData))
 			serviceMock := MockSystemService{
 				t:         t,
 				responses: tc.responses,
@@ -132,6 +135,57 @@ func TestGetSystems(t *testing.T) {
 	}
 }
 
+func TestGetSystem(t *testing.T) {
+	testCases := []struct {
+		name          string
+		request       *systemProto.GetSystemRequest
+		response      *sm.System
+		expectedError bool
+		errorCode     codes.Code
+	}{
+		{
+			name:          "request existing system",
+			response:      testData[0],
+			expectedError: false,
+			request: &systemProto.GetSystemRequest{
+				Name: testData[0].Name,
+			},
+		},
+		{
+			name:          "request none existing system",
+			response:      nil,
+			expectedError: true,
+			request: &systemProto.GetSystemRequest{
+				Name: "does not exists",
+			},
+			errorCode: codes.NotFound,
+		},
+	}
+
+	systemServer := service.New(db.NewMockDB(testData))
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			resp, err := systemServer.GetSystem(context.Background(), tc.request)
+			if err != nil {
+				if !tc.expectedError {
+					t.Errorf("response returned error and when it should be ok: %v", err)
+				}
+				st, ok := status.FromError(err)
+				if !ok {
+					t.Errorf("was not a status: %v", err)
+				}
+				if st.Code() != tc.errorCode {
+					t.Errorf("wrong status code: expected %v | actual: %v", tc.errorCode, st.Code())
+				}
+				return
+			}
+			compareResponseToSystem(t, resp, tc.response)
+		})
+	}
+}
+
 type MockSystemService struct {
 	CallCount int
 	t         *testing.T
@@ -139,23 +193,27 @@ type MockSystemService struct {
 	grpc.ServerStream
 }
 
-func (x *MockSystemService) Send(m *systemProto.SystemResponse) error {
-	system := x.responses[x.CallCount]
-	if system.Name != m.Name {
-		x.t.Errorf("names do not match, expected: %s | actual: %s", system.Name, m.Name)
-	}
-	if int(system.Type) != int(m.Type) {
-		x.t.Errorf("types do not match, expected: %v | actual: %v", system.Type, m.Type)
-	}
-	if system.Location != m.Location {
-		x.t.Errorf("locations do not match, expected: %s | actual: %s", system.Location, m.Location)
-	}
-	if system.CleaningInterval != m.CleaningInterval {
-		x.t.Errorf("cleaning intervals do not match, expected: %d | actual: %d", system.CleaningInterval, m.CleaningInterval)
-	}
-	if system.LastCleaned.Unix() != m.LastCleaned {
-		x.t.Errorf("last cleaned do not match, expected: %d | actual: %d", system.LastCleaned.Unix(), m.LastCleaned)
-	}
+func (x *MockSystemService) Send(resp *systemProto.SystemResponse) error {
+	compareResponseToSystem(x.t, resp, x.responses[x.CallCount])
 	x.CallCount++
 	return nil
+}
+
+func compareResponseToSystem(t *testing.T, resp *systemProto.SystemResponse, system *sm.System) {
+
+	if system.Name != resp.Name {
+		t.Errorf("names do not match, expected: %s | actual: %s", system.Name, resp.Name)
+	}
+	if int(system.Type) != int(resp.Type) {
+		t.Errorf("types do not match, expected: %v | actual: %v", system.Type, resp.Type)
+	}
+	if system.Location != resp.Location {
+		t.Errorf("locations do not match, expected: %s | actual: %s", system.Location, resp.Location)
+	}
+	if system.CleaningInterval != resp.CleaningInterval {
+		t.Errorf("cleaning intervals do not match, expected: %d | actual: %d", system.CleaningInterval, resp.CleaningInterval)
+	}
+	if system.LastCleaned.Unix() != resp.LastCleaned {
+		t.Errorf("last cleaned do not match, expected: %d | actual: %d", system.LastCleaned.Unix(), resp.LastCleaned)
+	}
 }

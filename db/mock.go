@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -13,27 +14,30 @@ import (
 	"github.com/anchamber/genetics-system/db/model"
 )
 
-type SytemDBMock struct {
+type SystemDBMock struct {
 	DB *sqlx.DB
 }
 
-var MockDataSystems []*model.System = []*model.System{
+var MockDataSystems = []*model.System{
 	{Name: "doctor", Location: "tardis", Type: model.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
 	{Name: "rick", Location: "c-137", Type: model.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
 	{Name: "morty", Location: "herry-herpson", Type: model.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
 	{Name: "obi", Location: "high_ground", Type: model.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
 }
 
-func NewMockDB(initialData []*model.System) SytemDBMock {
+func NewMockDB(initialData []*model.System) SystemDBMock {
 	if initialData == nil {
 		initialData = MockDataSystems
 	}
-	mock := SytemDBMock{
+	mock := SystemDBMock{
 		DB: initDB(),
 	}
-
+	mock.DB.SetMaxOpenConns(1)
 	for _, system := range initialData {
-		mock.Insert(system)
+		err := mock.Insert(system)
+		if err != nil {
+			return SystemDBMock{}
+		}
 	}
 
 	return mock
@@ -98,7 +102,7 @@ func (o *Options) createFilterMap() map[string]interface{} {
 	return values
 }
 
-func (systemDB SytemDBMock) Select(options Options) ([]*model.System, error) {
+func (systemDB SystemDBMock) Select(options Options) ([]*model.System, error) {
 	selectStatement := fmt.Sprintf("SELECT id, name, location, type, responsible, cleaning_interval, last_cleaned FROM systems %s %s;", options.createFilterClause(), options.createPaginationClause())
 	// fmt.Println(selectStatement)
 	filterValues := options.createFilterMap()
@@ -109,7 +113,12 @@ func (systemDB SytemDBMock) Select(options Options) ([]*model.System, error) {
 		return nil, err
 	}
 
-	defer rows.Close()
+	defer func(rows *sqlx.Rows) {
+		err := rows.Close()
+		if err != nil {
+			fmt.Printf(fmt.Sprintf("failed closing rows %v\n", err))
+		}
+	}(rows)
 	var data []*model.System
 	for rows.Next() {
 		var entry model.System
@@ -123,7 +132,8 @@ func (systemDB SytemDBMock) Select(options Options) ([]*model.System, error) {
 	return data, nil
 }
 
-func (systemDB SytemDBMock) SelectByName(name string) (*model.System, error) {
+func (systemDB SystemDBMock) SelectByName(name string) (*model.System, error) {
+	//goland:noinspection ALL
 	selectStatement := `
 		SELECT name, location, type, cleaning_interval, last_cleaned 
 		FROM systems
@@ -139,7 +149,12 @@ func (systemDB SytemDBMock) SelectByName(name string) (*model.System, error) {
 	if !rows.Next() {
 		return nil, nil
 	}
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			fmt.Printf(fmt.Sprintf("failed closing rows %v\n", err))
+		}
+	}(rows)
 	err = rows.Scan(&entry.Name, &entry.Location, &entry.Type, &entry.CleaningInterval, &entry.LastCleaned)
 	if err != nil {
 		return nil, err
@@ -148,8 +163,9 @@ func (systemDB SytemDBMock) SelectByName(name string) (*model.System, error) {
 	return &entry, nil
 }
 
-func (systemDB SytemDBMock) Insert(system *model.System) error {
-	var errorString string = ""
+func (systemDB SystemDBMock) Insert(system *model.System) error {
+	var errorString = ""
+	//goland:noinspection ALL
 	insertStatement := `
 		INSERT INTO systems (name, location, type, responsible, cleaning_interval, last_cleaned)
 			VALUES (?, ?, ?, ?, ?, ?);
@@ -165,7 +181,12 @@ func (systemDB SytemDBMock) Insert(system *model.System) error {
 		fmt.Printf("failed to prepare statement\n")
 		return err
 	}
-	defer statement.Close()
+	defer func(statement *sql.Stmt) {
+		err := statement.Close()
+		if err != nil {
+			fmt.Printf(fmt.Sprintf("failed closing statement %v\n", err))
+		}
+	}(statement)
 
 	_, err = statement.Exec(system.Name, system.Location, system.Type, system.Responsible, system.CleaningInterval, system.LastCleaned)
 	if err != nil {
@@ -182,11 +203,17 @@ func (systemDB SytemDBMock) Insert(system *model.System) error {
 			fmt.Printf("%v\n", err.Error())
 			errorString = string(Unknown)
 		}
-		tx.Rollback()
+		err := tx.Rollback()
+		if err != nil {
+			return err
+		}
 	} else {
 		// numberCreated, _ := result.RowsAffected()
 		// fmt.Printf("created %d entries\n", numberCreated)
-		tx.Commit()
+		err := tx.Commit()
+		if err != nil {
+			return err
+		}
 	}
 	if errorString == "" {
 		return nil
@@ -194,10 +221,11 @@ func (systemDB SytemDBMock) Insert(system *model.System) error {
 	return errors.New(errorString)
 }
 
-func (systemDB SytemDBMock) Update(system *model.System) error {
+func (systemDB SystemDBMock) Update(system *model.System) error {
+	//goland:noinspection ALL
 	insertStatement := `
 		UPDATE systems 
-			SET name = $1, location = $2 type = $3, cleaning_interval = $4, last_cleaned = $5
+			SET name = $1, location = $2, type = $3, cleaning_interval = $4, last_cleaned = $5
 			WHERE name = $1;
 	`
 	tx, err := systemDB.DB.Begin()
@@ -211,14 +239,22 @@ func (systemDB SytemDBMock) Update(system *model.System) error {
 		fmt.Printf("failed to prepare statement\n")
 		return err
 	}
-	defer statement.Close()
+	defer func(statement *sql.Stmt) {
+		err := statement.Close()
+		if err != nil {
+			fmt.Printf(fmt.Sprintf("failed closing statement %v\n", err))
+		}
+	}(statement)
 
 	_, err = statement.Exec(system.Name, system.Location, system.Type, system.CleaningInterval, system.LastCleaned)
 	if err != nil {
 		fmt.Printf("failed to execute statement\n")
 		return err
 	}
-	tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -228,23 +264,29 @@ func initDB() *sqlx.DB {
 		panic(err)
 	}
 
-	CreateTables(db)
-	CreateIndexes(db)
+	err = CreateTables(db)
+	if err != nil {
+		return nil
+	}
+	err = CreateIndexes(db)
+	if err != nil {
+		return nil
+	}
 
 	return db
 }
 
 func CreateTables(db *sqlx.DB) error {
-
+	//goland:noinspection ALL
 	systemTable := `
 		CREATE TABLE IF NOT EXISTS systems(
-			id								INTEGER	PRIMARY KEY AUTOINCREMENT,
-			name							TEXT		UNIQUE NOT NULL,
-			location					TEXT,
-			type							TEXT,
-			responsible				TEXT,
-			cleaning_interval INT,
-			last_cleaned			DATE
+			id					INTEGER	PRIMARY KEY AUTOINCREMENT,
+			name				TEXT UNIQUE NOT NULL,
+			location			TEXT,
+			type				TEXT,
+			responsible			TEXT,
+			cleaning_interval 	INT,
+			last_cleaned		DATE
 		);
 	`
 
@@ -257,7 +299,7 @@ func CreateTables(db *sqlx.DB) error {
 }
 
 func CreateIndexes(db *sqlx.DB) error {
-
+	//goland:noinspection ALL
 	systemIndex := `
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_system_name ON systems(name);
 	`
