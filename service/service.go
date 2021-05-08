@@ -80,6 +80,9 @@ func (s *SystemService) CreateSystem(_ context.Context, in *pb.CreateSystemReque
 	if in.Name == "" {
 		return nil, status.Error(codes.InvalidArgument, "request needs to contain valid name")
 	}
+	if in.CleaningInterval <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "cleaning interval to short")
+	}
 	system := &model.System{
 		Name:             in.Name,
 		Location:         in.Location,

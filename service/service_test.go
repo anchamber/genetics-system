@@ -4,6 +4,7 @@ import (
 	"context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -16,10 +17,16 @@ import (
 )
 
 var testData = []*sm.System{
-	{Name: "doctor", Location: "tardis", Type: sm.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
+	{Name: "doctor", Location: "tardis", Type: sm.Techniplast, Responsible: "tardis", CleaningInterval: 90, LastCleaned: time.Now()},
 	{Name: "rick", Location: "c-137", Type: sm.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
-	{Name: "morty", Location: "herry-herpson", Type: sm.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
+	{Name: "morty", Location: "herry-herpson", Type: sm.Techniplast, Responsible: "rick", CleaningInterval: 90, LastCleaned: time.Now()},
 	{Name: "obi", Location: "high_ground", Type: sm.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
+}
+
+var testSystemsToCreate = []*sm.System{
+	{Name: "clara", Location: "london", Type: sm.Glass, Responsible: "doctor", CleaningInterval: 50, LastCleaned: time.Now().Add(time.Hour * 24 * 49)},
+	{Name: "emilia", Location: "pond", Type: sm.Glass, Responsible: "doctor", CleaningInterval: 50, LastCleaned: time.Now().Add(time.Hour * 24 * 50)},
+	{Name: "song", Location: "river", Type: sm.Glass, Responsible: "doctor", CleaningInterval: 50, LastCleaned: time.Now().Add(time.Hour * 24 * 51)},
 }
 
 func TestGetSystems(t *testing.T) {
@@ -128,6 +135,9 @@ func TestGetSystems(t *testing.T) {
 			if err != nil && !tc.expectedError {
 				t.Errorf("response returned error and when it should be ok: %v", err)
 			}
+			if tc.expectedError {
+				t.Error("response should have had an error")
+			}
 			if serviceMock.CallCount != len(tc.responses) {
 				t.Errorf("Call count of mock does not match, expected: %d | actual: %d", len(tc.responses), serviceMock.CallCount)
 			}
@@ -136,6 +146,7 @@ func TestGetSystems(t *testing.T) {
 }
 
 func TestGetSystem(t *testing.T) {
+	index := rand.Intn(len(testData))
 	testCases := []struct {
 		name          string
 		request       *systemProto.GetSystemRequest
@@ -145,10 +156,10 @@ func TestGetSystem(t *testing.T) {
 	}{
 		{
 			name:          "request existing system",
-			response:      testData[0],
+			response:      testData[index],
 			expectedError: false,
 			request: &systemProto.GetSystemRequest{
-				Name: testData[0].Name,
+				Name: testData[index].Name,
 			},
 		},
 		{
@@ -172,16 +183,88 @@ func TestGetSystem(t *testing.T) {
 				if !tc.expectedError {
 					t.Errorf("response returned error and when it should be ok: %v", err)
 				}
-				st, ok := status.FromError(err)
-				if !ok {
-					t.Errorf("was not a status: %v", err)
-				}
-				if st.Code() != tc.errorCode {
-					t.Errorf("wrong status code: expected %v | actual: %v", tc.errorCode, st.Code())
-				}
+				validateError(t, err, tc.errorCode)
 				return
 			}
+			if tc.expectedError {
+				t.Error("response should have had an error")
+			}
 			compareResponseToSystem(t, resp, tc.response)
+		})
+	}
+}
+
+func TestCreateSystem(t *testing.T) {
+	system := testSystemsToCreate[rand.Intn(len(testSystemsToCreate))]
+	testCases := []struct {
+		name          string
+		request       *systemProto.CreateSystemRequest
+		response      *sm.System
+		expectedError bool
+		errorCode     codes.Code
+	}{
+		{
+			name:          "create valid system",
+			response:      system,
+			expectedError: false,
+			request: &systemProto.CreateSystemRequest{
+				Name:             system.Name,
+				Location:         system.Location,
+				Type:             systemProto.SystemType(system.Type),
+				Responsible:      system.Responsible,
+				CleaningInterval: system.CleaningInterval,
+				LastCleaned:      system.LastCleaned.Unix(),
+			},
+		},
+		{
+			name:          "create system with invalid name",
+			response:      nil,
+			expectedError: true,
+			request: &systemProto.CreateSystemRequest{
+				Name:             "",
+				Location:         system.Location,
+				Type:             systemProto.SystemType(system.Type),
+				Responsible:      system.Responsible,
+				CleaningInterval: system.CleaningInterval,
+				LastCleaned:      system.LastCleaned.Unix(),
+			},
+			errorCode: codes.InvalidArgument,
+		},
+		{
+			name:          "create system with invalid cleaning interval",
+			response:      nil,
+			expectedError: true,
+			request: &systemProto.CreateSystemRequest{
+				Name:             system.Name,
+				Location:         "",
+				Type:             systemProto.SystemType(system.Type),
+				Responsible:      system.Responsible,
+				CleaningInterval: 0,
+				LastCleaned:      system.LastCleaned.Unix(),
+			},
+			errorCode: codes.InvalidArgument,
+		},
+	}
+
+	systemServer := service.New(db.NewMockDB(testData))
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			res, err := systemServer.CreateSystem(context.Background(), tc.request)
+			if err != nil {
+				if !tc.expectedError {
+					t.Errorf("response returned error and when it should be ok: %v", err)
+				}
+				validateError(t, err, tc.errorCode)
+				return
+			}
+			if tc.expectedError {
+				t.Error("response should have had an error")
+			}
+			if res == nil {
+				t.Error("response should not be nil")
+			}
 		})
 	}
 }
@@ -216,4 +299,15 @@ func compareResponseToSystem(t *testing.T, resp *systemProto.SystemResponse, sys
 	if system.LastCleaned.Unix() != resp.LastCleaned {
 		t.Errorf("last cleaned do not match, expected: %d | actual: %d", system.LastCleaned.Unix(), resp.LastCleaned)
 	}
+}
+
+func validateError(t *testing.T, err error, code codes.Code) {
+	st, ok := status.FromError(err)
+	if !ok {
+		t.Errorf("was not a status: %v", err)
+	}
+	if st.Code() != code {
+		t.Errorf("wrong status code: expected %v | actual: %v", code, st.Code())
+	}
+	return
 }
