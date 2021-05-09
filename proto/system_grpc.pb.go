@@ -18,7 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SystemServiceClient interface {
-	GetSystems(ctx context.Context, in *GetSystemsRequest, opts ...grpc.CallOption) (SystemService_GetSystemsClient, error)
+	StreamSystems(ctx context.Context, in *GetSystemsRequest, opts ...grpc.CallOption) (SystemService_StreamSystemsClient, error)
 	GetSystem(ctx context.Context, in *GetSystemRequest, opts ...grpc.CallOption) (*SystemResponse, error)
 	CreateSystem(ctx context.Context, in *CreateSystemRequest, opts ...grpc.CallOption) (*CreateSystemResponse, error)
 	UpdateSystem(ctx context.Context, in *UpdateSystemRequest, opts ...grpc.CallOption) (*UpdateSystemResponse, error)
@@ -33,12 +33,12 @@ func NewSystemServiceClient(cc grpc.ClientConnInterface) SystemServiceClient {
 	return &systemServiceClient{cc}
 }
 
-func (c *systemServiceClient) GetSystems(ctx context.Context, in *GetSystemsRequest, opts ...grpc.CallOption) (SystemService_GetSystemsClient, error) {
-	stream, err := c.cc.NewStream(ctx, &SystemService_ServiceDesc.Streams[0], "/genetics_system.SystemService/GetSystems", opts...)
+func (c *systemServiceClient) StreamSystems(ctx context.Context, in *GetSystemsRequest, opts ...grpc.CallOption) (SystemService_StreamSystemsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &SystemService_ServiceDesc.Streams[0], "/anchamber.genetics.SystemService/StreamSystems", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &systemServiceGetSystemsClient{stream}
+	x := &systemServiceStreamSystemsClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -48,16 +48,16 @@ func (c *systemServiceClient) GetSystems(ctx context.Context, in *GetSystemsRequ
 	return x, nil
 }
 
-type SystemService_GetSystemsClient interface {
+type SystemService_StreamSystemsClient interface {
 	Recv() (*SystemResponse, error)
 	grpc.ClientStream
 }
 
-type systemServiceGetSystemsClient struct {
+type systemServiceStreamSystemsClient struct {
 	grpc.ClientStream
 }
 
-func (x *systemServiceGetSystemsClient) Recv() (*SystemResponse, error) {
+func (x *systemServiceStreamSystemsClient) Recv() (*SystemResponse, error) {
 	m := new(SystemResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -67,7 +67,7 @@ func (x *systemServiceGetSystemsClient) Recv() (*SystemResponse, error) {
 
 func (c *systemServiceClient) GetSystem(ctx context.Context, in *GetSystemRequest, opts ...grpc.CallOption) (*SystemResponse, error) {
 	out := new(SystemResponse)
-	err := c.cc.Invoke(ctx, "/genetics_system.SystemService/GetSystem", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/anchamber.genetics.SystemService/GetSystem", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (c *systemServiceClient) GetSystem(ctx context.Context, in *GetSystemReques
 
 func (c *systemServiceClient) CreateSystem(ctx context.Context, in *CreateSystemRequest, opts ...grpc.CallOption) (*CreateSystemResponse, error) {
 	out := new(CreateSystemResponse)
-	err := c.cc.Invoke(ctx, "/genetics_system.SystemService/CreateSystem", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/anchamber.genetics.SystemService/CreateSystem", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (c *systemServiceClient) CreateSystem(ctx context.Context, in *CreateSystem
 
 func (c *systemServiceClient) UpdateSystem(ctx context.Context, in *UpdateSystemRequest, opts ...grpc.CallOption) (*UpdateSystemResponse, error) {
 	out := new(UpdateSystemResponse)
-	err := c.cc.Invoke(ctx, "/genetics_system.SystemService/UpdateSystem", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/anchamber.genetics.SystemService/UpdateSystem", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (c *systemServiceClient) UpdateSystem(ctx context.Context, in *UpdateSystem
 
 func (c *systemServiceClient) DeleteSystem(ctx context.Context, in *DeleteSystemRequest, opts ...grpc.CallOption) (*DeleteSystemResponse, error) {
 	out := new(DeleteSystemResponse)
-	err := c.cc.Invoke(ctx, "/genetics_system.SystemService/DeleteSystem", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/anchamber.genetics.SystemService/DeleteSystem", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (c *systemServiceClient) DeleteSystem(ctx context.Context, in *DeleteSystem
 // All implementations must embed UnimplementedSystemServiceServer
 // for forward compatibility
 type SystemServiceServer interface {
-	GetSystems(*GetSystemsRequest, SystemService_GetSystemsServer) error
+	StreamSystems(*GetSystemsRequest, SystemService_StreamSystemsServer) error
 	GetSystem(context.Context, *GetSystemRequest) (*SystemResponse, error)
 	CreateSystem(context.Context, *CreateSystemRequest) (*CreateSystemResponse, error)
 	UpdateSystem(context.Context, *UpdateSystemRequest) (*UpdateSystemResponse, error)
@@ -117,8 +117,8 @@ type SystemServiceServer interface {
 type UnimplementedSystemServiceServer struct {
 }
 
-func (UnimplementedSystemServiceServer) GetSystems(*GetSystemsRequest, SystemService_GetSystemsServer) error {
-	return status.Errorf(codes.Unimplemented, "method GetSystems not implemented")
+func (UnimplementedSystemServiceServer) StreamSystems(*GetSystemsRequest, SystemService_StreamSystemsServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamSystems not implemented")
 }
 func (UnimplementedSystemServiceServer) GetSystem(context.Context, *GetSystemRequest) (*SystemResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSystem not implemented")
@@ -145,24 +145,24 @@ func RegisterSystemServiceServer(s grpc.ServiceRegistrar, srv SystemServiceServe
 	s.RegisterService(&SystemService_ServiceDesc, srv)
 }
 
-func _SystemService_GetSystems_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _SystemService_StreamSystems_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(GetSystemsRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(SystemServiceServer).GetSystems(m, &systemServiceGetSystemsServer{stream})
+	return srv.(SystemServiceServer).StreamSystems(m, &systemServiceStreamSystemsServer{stream})
 }
 
-type SystemService_GetSystemsServer interface {
+type SystemService_StreamSystemsServer interface {
 	Send(*SystemResponse) error
 	grpc.ServerStream
 }
 
-type systemServiceGetSystemsServer struct {
+type systemServiceStreamSystemsServer struct {
 	grpc.ServerStream
 }
 
-func (x *systemServiceGetSystemsServer) Send(m *SystemResponse) error {
+func (x *systemServiceStreamSystemsServer) Send(m *SystemResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -176,7 +176,7 @@ func _SystemService_GetSystem_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/genetics_system.SystemService/GetSystem",
+		FullMethod: "/anchamber.genetics.SystemService/GetSystem",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SystemServiceServer).GetSystem(ctx, req.(*GetSystemRequest))
@@ -194,7 +194,7 @@ func _SystemService_CreateSystem_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/genetics_system.SystemService/CreateSystem",
+		FullMethod: "/anchamber.genetics.SystemService/CreateSystem",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SystemServiceServer).CreateSystem(ctx, req.(*CreateSystemRequest))
@@ -212,7 +212,7 @@ func _SystemService_UpdateSystem_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/genetics_system.SystemService/UpdateSystem",
+		FullMethod: "/anchamber.genetics.SystemService/UpdateSystem",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SystemServiceServer).UpdateSystem(ctx, req.(*UpdateSystemRequest))
@@ -230,7 +230,7 @@ func _SystemService_DeleteSystem_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/genetics_system.SystemService/DeleteSystem",
+		FullMethod: "/anchamber.genetics.SystemService/DeleteSystem",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SystemServiceServer).DeleteSystem(ctx, req.(*DeleteSystemRequest))
@@ -242,7 +242,7 @@ func _SystemService_DeleteSystem_Handler(srv interface{}, ctx context.Context, d
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var SystemService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "genetics_system.SystemService",
+	ServiceName: "anchamber.genetics.SystemService",
 	HandlerType: (*SystemServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -264,8 +264,8 @@ var SystemService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "GetSystems",
-			Handler:       _SystemService_GetSystems_Handler,
+			StreamName:    "StreamSystems",
+			Handler:       _SystemService_StreamSystems_Handler,
 			ServerStreams: true,
 		},
 	},

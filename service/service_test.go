@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"context"
+	"google.golang.org/genproto/protobuf/field_mask"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"math/rand"
@@ -29,7 +30,7 @@ var testSystemsToCreate = []*sm.System{
 	{Name: "song", Location: "river", Type: sm.Glass, Responsible: "doctor", CleaningInterval: 50, LastCleaned: time.Now().Add(time.Hour * 24 * 51)},
 }
 
-func TestGetSystems(t *testing.T) {
+func TestStreamSystems(t *testing.T) {
 	testCases := []struct {
 		name          string
 		request       *systemProto.GetSystemsRequest
@@ -131,12 +132,9 @@ func TestGetSystems(t *testing.T) {
 				t:         t,
 				responses: tc.responses,
 			}
-			err := systemServer.GetSystems(tc.request, &serviceMock)
-			if err != nil && !tc.expectedError {
-				t.Errorf("response returned error and when it should be ok: %v", err)
-			}
-			if tc.expectedError {
-				t.Error("response should have had an error")
+			err := systemServer.StreamSystems(tc.request, &serviceMock)
+			if validateError(t, err, codes.Unknown, tc.expectedError) {
+				return
 			}
 			if serviceMock.CallCount != len(tc.responses) {
 				t.Errorf("Call count of mock does not match, expected: %d | actual: %d", len(tc.responses), serviceMock.CallCount)
@@ -179,15 +177,8 @@ func TestGetSystem(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			resp, err := systemServer.GetSystem(context.Background(), tc.request)
-			if err != nil {
-				if !tc.expectedError {
-					t.Errorf("response returned error and when it should be ok: %v", err)
-				}
-				validateError(t, err, tc.errorCode)
+			if validateError(t, err, tc.errorCode, tc.expectedError) {
 				return
-			}
-			if tc.expectedError {
-				t.Error("response should have had an error")
 			}
 			compareResponseToSystem(t, resp, tc.response)
 		})
@@ -246,25 +237,116 @@ func TestCreateSystem(t *testing.T) {
 		},
 	}
 
-	systemServer := service.New(db.NewMockDB(testData))
 	for _, tc := range testCases {
+		systemServer := service.New(db.NewMockDB(testData))
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			res, err := systemServer.CreateSystem(context.Background(), tc.request)
-			if err != nil {
-				if !tc.expectedError {
-					t.Errorf("response returned error and when it should be ok: %v", err)
-				}
-				validateError(t, err, tc.errorCode)
+			if validateError(t, err, tc.errorCode, tc.expectedError) {
 				return
-			}
-			if tc.expectedError {
-				t.Error("response should have had an error")
 			}
 			if res == nil {
 				t.Error("response should not be nil")
 			}
+		})
+	}
+}
+
+func TestUpdateSystem(t *testing.T) {
+	system := testData[rand.Intn(len(testData))]
+	testCases := []struct {
+		name          string
+		request       *systemProto.UpdateSystemRequest
+		expected      sm.System
+		expectedError bool
+		errorCode     codes.Code
+	}{
+		{
+			name: "update location",
+			request: &systemProto.UpdateSystemRequest{
+				Name: system.Name,
+				System: &systemProto.System{
+					Location: "test location",
+				},
+				Mask: &field_mask.FieldMask{
+					Paths: []string{"location"},
+				},
+			},
+			expected:      sm.System{Name: system.Name, Location: "test location", Type: system.Type, Responsible: system.Responsible, CleaningInterval: system.CleaningInterval, LastCleaned: system.LastCleaned},
+			expectedError: false,
+		},
+		{
+			name: "update type",
+			request: &systemProto.UpdateSystemRequest{
+				Name: system.Name,
+				System: &systemProto.System{
+					Type: systemProto.SystemType((system.Type + 1) % 2),
+				},
+				Mask: &field_mask.FieldMask{
+					Paths: []string{"type"},
+				},
+			},
+			expected:      sm.System{Name: system.Name, Location: system.Location, Type: (system.Type + 1) % 2, Responsible: system.Responsible, CleaningInterval: system.CleaningInterval, LastCleaned: system.LastCleaned},
+			expectedError: false,
+		},
+		{
+			name: "update responsible",
+			request: &systemProto.UpdateSystemRequest{
+				Name: system.Name,
+				System: &systemProto.System{
+					Responsible: "darth",
+				},
+				Mask: &field_mask.FieldMask{
+					Paths: []string{"responsible"},
+				},
+			},
+			expected:      sm.System{Name: system.Name, Location: system.Location, Type: system.Type, Responsible: "darth", CleaningInterval: system.CleaningInterval, LastCleaned: system.LastCleaned},
+			expectedError: false,
+		},
+		{
+			name: "update cleaning interval",
+			request: &systemProto.UpdateSystemRequest{
+				Name: system.Name,
+				System: &systemProto.System{
+					CleaningInterval: system.CleaningInterval + 10,
+				},
+				Mask: &field_mask.FieldMask{
+					Paths: []string{"cleaning_interval"},
+				},
+			},
+			expected:      sm.System{Name: system.Name, Location: system.Location, Type: system.Type, Responsible: system.Responsible, CleaningInterval: system.CleaningInterval + 10, LastCleaned: system.LastCleaned},
+			expectedError: false,
+		},
+		{
+			name: "update last cleaned",
+			request: &systemProto.UpdateSystemRequest{
+				Name: system.Name,
+
+				System: &systemProto.System{
+					LastCleaned: system.LastCleaned.Add(-10 * time.Hour * 24).Unix(),
+				},
+				Mask: &field_mask.FieldMask{
+					Paths: []string{"last_cleaned"},
+				},
+			},
+			expected:      sm.System{Name: system.Name, Location: system.Location, Type: system.Type, Responsible: system.Responsible, CleaningInterval: system.CleaningInterval, LastCleaned: system.LastCleaned.Add(-10 * time.Hour * 24)},
+			expectedError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		systemServer := service.New(db.NewMockDB(testData))
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := systemServer.UpdateSystem(context.Background(), tc.request)
+			validateError(t, err, tc.errorCode, tc.expectedError)
+			resp, err := systemServer.GetSystem(context.Background(), &systemProto.GetSystemRequest{Name: tc.expected.Name})
+			if validateError(t, err, tc.errorCode, tc.expectedError) {
+				return
+			}
+			compareResponseToSystem(t, resp, &tc.expected)
 		})
 	}
 }
@@ -301,13 +383,24 @@ func compareResponseToSystem(t *testing.T, resp *systemProto.SystemResponse, sys
 	}
 }
 
-func validateError(t *testing.T, err error, code codes.Code) {
-	st, ok := status.FromError(err)
-	if !ok {
-		t.Errorf("was not a status: %v", err)
+func validateError(t *testing.T, err error, code codes.Code, expected bool) bool {
+	done := false
+	if err != nil {
+		if !expected {
+			t.Fatalf("response returned error and when it should be ok: %v", err)
+		}
+		st, ok := status.FromError(err)
+		if !ok {
+			t.Fatalf("was not a status: %v", err)
+		}
+		if st.Code() != code {
+			t.Fatalf("wrong status code: expected %v | actual: %v", code, st.Code())
+		}
+		done = true
+	} else {
+		if expected {
+			t.Fatalf("response should have had an error")
+		}
 	}
-	if st.Code() != code {
-		t.Errorf("wrong status code: expected %v | actual: %v", code, st.Code())
-	}
-	return
+	return done
 }
