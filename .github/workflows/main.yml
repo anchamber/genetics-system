@@ -32,5 +32,6 @@ jobs:
       - name: Build and push Docker images
         uses: docker/build-push-action@v2.4.0
         with:
-          tags: anchamber/genetics-system:latest,anchamber/genetics-system:${{ github.sha }}
+          name: anchamber/genetics-system
+          tags: latest,${{ github.sha }}
         
