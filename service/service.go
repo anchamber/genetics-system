@@ -126,6 +126,10 @@ func (s *SystemService) UpdateSystem(_ context.Context, in *pb.UpdateSystemReque
 
 func (s *SystemService) DeleteSystem(_ context.Context, in *pb.DeleteSystemRequest) (*pb.DeleteSystemResponse, error) {
 	log.Printf("DEL: received for %s\n", in.Name)
+	err := s.db.Delete(in.Name)
+	if err != nil {
+
+	}
 	return &pb.DeleteSystemResponse{}, nil
 }
 

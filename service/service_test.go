@@ -351,6 +351,44 @@ func TestUpdateSystem(t *testing.T) {
 	}
 }
 
+func TestDeleteSystem(t *testing.T) {
+	system := testData[rand.Intn(len(testData))]
+	testCases := []struct {
+		name             string
+		request          *systemProto.DeleteSystemRequest
+		expectedErrorGet bool
+		expectedErrorDel bool
+		errorCode        codes.Code
+	}{
+		{
+			name: "delete existing system",
+			request: &systemProto.DeleteSystemRequest{
+				Name: system.Name,
+			},
+			expectedErrorDel: false,
+			expectedErrorGet: true,
+			errorCode:        codes.NotFound,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			systemServer := service.New(db.NewMockDB(testData))
+			_, err := systemServer.DeleteSystem(context.Background(), tc.request)
+			if validateError(t, err, tc.errorCode, tc.expectedErrorDel) {
+				return
+			}
+			resp, err := systemServer.GetSystem(context.Background(), &systemProto.GetSystemRequest{Name: system.Name})
+			if validateError(t, err, tc.errorCode, tc.expectedErrorGet) {
+				return
+			}
+			compareResponseToSystem(t, resp, system)
+		})
+	}
+}
+
 type MockSystemService struct {
 	CallCount int
 	t         *testing.T

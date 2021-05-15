@@ -258,6 +258,39 @@ func (systemDB SystemDBMock) Update(system *model.System) error {
 	return nil
 }
 
+func (systemDB SystemDBMock) Delete(name string) error {
+	//goland:noinspection ALL
+	statementString := `
+		DELETE FROM systems WHERE name = ?;
+	`
+	statement, err := systemDB.DB.Prepare(statementString)
+	if err != nil {
+		fmt.Printf("failed to prepare statement\n")
+		return err
+	}
+	defer func(statement *sql.Stmt) {
+		err := statement.Close()
+		if err != nil {
+			fmt.Printf(fmt.Sprintf("failed closing statement %v\n", err))
+		}
+	}(statement)
+
+	_, err = statement.Exec(name)
+	if err != nil {
+		fmt.Printf("failed to execute statement\n")
+		if sqliteErr, ok := err.(sqlite3.Error); ok {
+			switch sqliteErr.Code {
+			case sqlite3.ErrConstraint:
+			default:
+			}
+		} else {
+			fmt.Printf("%v\n", err.Error())
+			return errors.New(string(Unknown))
+		}
+	}
+	return nil
+}
+
 func initDB() *sqlx.DB {
 	db, err := sqlx.Connect("sqlite3", ":memory:")
 	if err != nil {

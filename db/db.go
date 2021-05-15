@@ -15,6 +15,7 @@ type SystemDB interface {
 	SelectByName(name string) (*model.System, error)
 	Insert(system *model.System) error
 	Update(system *model.System) error
+	Delete(name string) error
 }
 
 type ErrorCode string
