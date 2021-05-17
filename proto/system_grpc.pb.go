@@ -18,7 +18,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SystemServiceClient interface {
-	StreamSystems(ctx context.Context, in *GetSystemsRequest, opts ...grpc.CallOption) (SystemService_StreamSystemsClient, error)
+	StreamSystems(ctx context.Context, in *StreamSystemsRequest, opts ...grpc.CallOption) (SystemService_StreamSystemsClient, error)
 	GetSystem(ctx context.Context, in *GetSystemRequest, opts ...grpc.CallOption) (*SystemResponse, error)
 	CreateSystem(ctx context.Context, in *CreateSystemRequest, opts ...grpc.CallOption) (*CreateSystemResponse, error)
 	UpdateSystem(ctx context.Context, in *UpdateSystemRequest, opts ...grpc.CallOption) (*UpdateSystemResponse, error)
@@ -33,7 +33,7 @@ func NewSystemServiceClient(cc grpc.ClientConnInterface) SystemServiceClient {
 	return &systemServiceClient{cc}
 }
 
-func (c *systemServiceClient) StreamSystems(ctx context.Context, in *GetSystemsRequest, opts ...grpc.CallOption) (SystemService_StreamSystemsClient, error) {
+func (c *systemServiceClient) StreamSystems(ctx context.Context, in *StreamSystemsRequest, opts ...grpc.CallOption) (SystemService_StreamSystemsClient, error) {
 	stream, err := c.cc.NewStream(ctx, &SystemService_ServiceDesc.Streams[0], "/anchamber.genetics.SystemService/StreamSystems", opts...)
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func (c *systemServiceClient) DeleteSystem(ctx context.Context, in *DeleteSystem
 // All implementations must embed UnimplementedSystemServiceServer
 // for forward compatibility
 type SystemServiceServer interface {
-	StreamSystems(*GetSystemsRequest, SystemService_StreamSystemsServer) error
+	StreamSystems(*StreamSystemsRequest, SystemService_StreamSystemsServer) error
 	GetSystem(context.Context, *GetSystemRequest) (*SystemResponse, error)
 	CreateSystem(context.Context, *CreateSystemRequest) (*CreateSystemResponse, error)
 	UpdateSystem(context.Context, *UpdateSystemRequest) (*UpdateSystemResponse, error)
@@ -117,7 +117,7 @@ type SystemServiceServer interface {
 type UnimplementedSystemServiceServer struct {
 }
 
-func (UnimplementedSystemServiceServer) StreamSystems(*GetSystemsRequest, SystemService_StreamSystemsServer) error {
+func (UnimplementedSystemServiceServer) StreamSystems(*StreamSystemsRequest, SystemService_StreamSystemsServer) error {
 	return status.Errorf(codes.Unimplemented, "method StreamSystems not implemented")
 }
 func (UnimplementedSystemServiceServer) GetSystem(context.Context, *GetSystemRequest) (*SystemResponse, error) {
@@ -146,7 +146,7 @@ func RegisterSystemServiceServer(s grpc.ServiceRegistrar, srv SystemServiceServe
 }
 
 func _SystemService_StreamSystems_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(GetSystemsRequest)
+	m := new(StreamSystemsRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}

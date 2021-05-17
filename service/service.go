@@ -25,7 +25,7 @@ var filterKeys = []string{
 	"id", "name", "location", "type", "responsible", "cleaning_interval", "last_cleaned",
 }
 
-func (s *SystemService) StreamSystems(in *pb.GetSystemsRequest, stream pb.SystemService_StreamSystemsServer) error {
+func (s *SystemService) StreamSystems(in *pb.StreamSystemsRequest, stream pb.SystemService_StreamSystemsServer) error {
 	log.Printf("GET: received with %d filters\n", len(in.Filters))
 	var paginationSettings *apiModel.Pageination
 	if in.Pageination != nil {

@@ -33,19 +33,19 @@ var testSystemsToCreate = []*sm.System{
 func TestStreamSystems(t *testing.T) {
 	testCases := []struct {
 		name          string
-		request       *systemProto.GetSystemsRequest
+		request       *systemProto.StreamSystemsRequest
 		responses     []*sm.System
 		expectedError bool
 	}{
 		{
 			name:          "request all entries",
-			request:       &systemProto.GetSystemsRequest{},
+			request:       &systemProto.StreamSystemsRequest{},
 			responses:     db.MockDataSystems,
 			expectedError: false,
 		},
 		{
 			name: "request with limit",
-			request: &systemProto.GetSystemsRequest{
+			request: &systemProto.StreamSystemsRequest{
 				Pageination: &apiProto.Pagination{
 					Limit: 2,
 				},
@@ -55,7 +55,7 @@ func TestStreamSystems(t *testing.T) {
 		},
 		{
 			name: "request with offset",
-			request: &systemProto.GetSystemsRequest{
+			request: &systemProto.StreamSystemsRequest{
 				Pageination: &apiProto.Pagination{
 					Offset: 2,
 				},
@@ -65,7 +65,7 @@ func TestStreamSystems(t *testing.T) {
 		},
 		{
 			name: "request with offset and limit",
-			request: &systemProto.GetSystemsRequest{
+			request: &systemProto.StreamSystemsRequest{
 				Pageination: &apiProto.Pagination{
 					Offset: 2,
 					Limit:  1,
@@ -76,7 +76,7 @@ func TestStreamSystems(t *testing.T) {
 		},
 		{
 			name: "request with name filter EQ",
-			request: &systemProto.GetSystemsRequest{
+			request: &systemProto.StreamSystemsRequest{
 				Filters: []*apiProto.Filter{
 					{
 						Key:      "name",
@@ -92,7 +92,7 @@ func TestStreamSystems(t *testing.T) {
 		},
 		{
 			name: "request with name filter CONTAINS",
-			request: &systemProto.GetSystemsRequest{
+			request: &systemProto.StreamSystemsRequest{
 				Filters: []*apiProto.Filter{
 					{
 						Key:      "name",
@@ -108,7 +108,7 @@ func TestStreamSystems(t *testing.T) {
 		},
 		{
 			name: "request with invalid filter key",
-			request: &systemProto.GetSystemsRequest{
+			request: &systemProto.StreamSystemsRequest{
 				Filters: []*apiProto.Filter{
 					{
 						Key:      "nme",
