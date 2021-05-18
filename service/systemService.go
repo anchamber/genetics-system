@@ -21,7 +21,7 @@ type SystemService struct {
 	db db.SystemDB
 }
 
-var filterKeys = []string{
+var systemFilterKeys = []string{
 	"id", "name", "location", "type", "responsible", "cleaning_interval", "last_cleaned",
 }
 
@@ -39,7 +39,7 @@ func (s *SystemService) StreamSystems(in *pb.StreamSystemsRequest, stream pb.Sys
 	if in.Filters != nil {
 		for _, filter := range in.Filters {
 			found := false
-			for _, fk := range filterKeys {
+			for _, fk := range systemFilterKeys {
 				if fk == filter.Key {
 					filterSettings = append(filterSettings, apiModel.NewFilterFromProto(filter))
 					found = true
@@ -57,7 +57,7 @@ func (s *SystemService) StreamSystems(in *pb.StreamSystemsRequest, stream pb.Sys
 		Filters:     filterSettings,
 	})
 	for _, system := range data {
-		if err := stream.Send(mapToResponse(system)); err != nil {
+		if err := stream.Send(mapToSystemResponse(system)); err != nil {
 			fmt.Printf("%v\n", err)
 			return status.Error(codes.Internal, "internal error")
 		}
@@ -74,7 +74,7 @@ func (s *SystemService) GetSystem(_ context.Context, in *pb.GetSystemRequest) (*
 	if system == nil {
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("no system with name '%s' found", in.Name))
 	}
-	return mapToResponse(system), nil
+	return mapToSystemResponse(system), nil
 }
 
 func (s *SystemService) CreateSystem(_ context.Context, in *pb.CreateSystemRequest) (*pb.CreateSystemResponse, error) {
@@ -94,11 +94,11 @@ func (s *SystemService) CreateSystem(_ context.Context, in *pb.CreateSystemReque
 	}
 	err := s.db.Insert(system)
 	if err != nil {
-		switch err.Error() {
-		case string(db.SystemAlreadyExists):
-			return nil, status.Error(codes.AlreadyExists, "system already exists")
-		default:
-			return nil, status.Error(codes.Internal, "internal server error")
+		re, ok := err.(*db.EntityAlreadyExists)
+		if ok {
+			return nil, status.Error(codes.AlreadyExists, re.Error())
+		} else {
+			return nil, status.Error(codes.Internal, re.Error())
 		}
 	}
 	return &pb.CreateSystemResponse{}, nil
@@ -110,14 +110,14 @@ func (s *SystemService) UpdateSystem(_ context.Context, in *pb.UpdateSystemReque
 	if err != nil {
 
 	}
-	transformed := mapToProto(entity)
+	transformed := mapToSystemProto(entity)
 	in.Mask.Normalize()
 	if !in.Mask.IsValid(transformed) {
 
 	}
 	fmutils.Filter(in.GetSystem(), in.GetMask().GetPaths())
 	proto.Merge(transformed, in.GetSystem())
-	err = s.db.Update(mapToModel(transformed))
+	err = s.db.Update(mapToSystemModel(transformed))
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (s *SystemService) DeleteSystem(_ context.Context, in *pb.DeleteSystemReque
 	return &pb.DeleteSystemResponse{}, nil
 }
 
-func mapToResponse(system *model.System) *pb.SystemResponse {
+func mapToSystemResponse(system *model.System) *pb.SystemResponse {
 	return &pb.SystemResponse{
 		Name:             system.Name,
 		Location:         system.Location,
@@ -142,7 +142,7 @@ func mapToResponse(system *model.System) *pb.SystemResponse {
 		LastCleaned:      system.LastCleaned.Unix(),
 	}
 }
-func mapToProto(system *model.System) *pb.System {
+func mapToSystemProto(system *model.System) *pb.System {
 	return &pb.System{
 		Name:             system.Name,
 		Location:         system.Location,
@@ -152,7 +152,7 @@ func mapToProto(system *model.System) *pb.System {
 	}
 }
 
-func mapToModel(system *pb.System) *model.System {
+func mapToSystemModel(system *pb.System) *model.System {
 	return &model.System{
 		Name:             system.Name,
 		Location:         system.Location,
@@ -162,7 +162,7 @@ func mapToModel(system *pb.System) *model.System {
 	}
 }
 
-func New(db db.SystemDB) *SystemService {
+func NewSystemService(db db.SystemDB) *SystemService {
 	return &SystemService{
 		db: db,
 	}

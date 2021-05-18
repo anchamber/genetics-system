@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -10,7 +9,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/mattn/go-sqlite3"
 
-	apiModel "github.com/anchamber/genetics-api/model"
 	"github.com/anchamber/genetics-system/db/model"
 )
 
@@ -25,12 +23,12 @@ var MockDataSystems = []*model.System{
 	{Name: "obi", Location: "high_ground", Type: model.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
 }
 
-func NewMockDB(initialData []*model.System) SystemDBMock {
+func NewSystemDBMock(initialData []*model.System) SystemDBMock {
 	if initialData == nil {
 		initialData = MockDataSystems
 	}
 	mock := SystemDBMock{
-		DB: initDB(),
+		DB: initSystemDB(),
 	}
 	mock.DB.SetMaxOpenConns(1)
 	for _, system := range initialData {
@@ -42,66 +40,6 @@ func NewMockDB(initialData []*model.System) SystemDBMock {
 
 	return mock
 }
-
-func (o *Options) createPaginationClause() string {
-	if o.Pageination == nil {
-		return ""
-	}
-	var limit int64 = int64(o.Pageination.Limit)
-	if limit <= 0 {
-		limit = -1
-	}
-	return fmt.Sprintf("LIMIT %d OFFSET %d", limit, o.Pageination.Offset)
-}
-
-func getOperatorAsString(operator apiModel.Operator) string {
-	switch operator {
-	case apiModel.EQ:
-		return "="
-	case apiModel.GREATER:
-		return ">"
-	case apiModel.GREATER_EQ:
-		return ">="
-	case apiModel.SMALLER:
-		return "<"
-	case apiModel.SMALLER_EQ:
-		return "<="
-	case apiModel.CONTAINS:
-		return "LIKE"
-	default:
-		return "="
-	}
-}
-
-func (o *Options) createFilterClause() string {
-	if len(o.Filters) == 0 {
-		return ""
-	}
-	whereClause := "WHERE "
-
-	for index, filter := range o.Filters {
-		if index > 0 {
-			whereClause += " AND "
-		}
-
-		if filter.Operator == apiModel.CONTAINS {
-			whereClause += fmt.Sprintf("instr(%s, :%s) > 0", filter.Key, filter.Key)
-		} else {
-			whereClause += fmt.Sprintf("%s %v :%s", filter.Key, getOperatorAsString(filter.Operator), filter.Key)
-		}
-	}
-	// fmt.Println(whereClause)
-	return whereClause
-}
-
-func (o *Options) createFilterMap() map[string]interface{} {
-	values := make(map[string]interface{})
-	for _, filter := range o.Filters {
-		values[filter.Key] = filter.Value
-	}
-	return values
-}
-
 func (systemDB SystemDBMock) Select(options Options) ([]*model.System, error) {
 	selectStatement := fmt.Sprintf("SELECT id, name, location, type, responsible, cleaning_interval, last_cleaned FROM systems %s %s;", options.createFilterClause(), options.createPaginationClause())
 	// fmt.Println(selectStatement)
@@ -164,7 +102,6 @@ func (systemDB SystemDBMock) SelectByName(name string) (*model.System, error) {
 }
 
 func (systemDB SystemDBMock) Insert(system *model.System) error {
-	var errorString = ""
 	//goland:noinspection ALL
 	insertStatement := `
 		INSERT INTO systems (name, location, type, responsible, cleaning_interval, last_cleaned)
@@ -194,18 +131,14 @@ func (systemDB SystemDBMock) Insert(system *model.System) error {
 		if sqliteErr, ok := err.(sqlite3.Error); ok {
 			switch sqliteErr.Code {
 			case sqlite3.ErrConstraint:
-				errorString = string(SystemAlreadyExists)
+				return &EntityAlreadyExists{entity: "system"}
 			default:
 				fmt.Printf("%v\n", sqliteErr)
-				errorString = string(Unknown)
+				return &UnknownDBError{message: "Unknown error occurred"}
 			}
 		} else {
 			fmt.Printf("%v\n", err.Error())
-			errorString = string(Unknown)
-		}
-		err := tx.Rollback()
-		if err != nil {
-			return err
+			return &UnknownDBError{message: "Unknown error occurred"}
 		}
 	} else {
 		// numberCreated, _ := result.RowsAffected()
@@ -215,10 +148,7 @@ func (systemDB SystemDBMock) Insert(system *model.System) error {
 			return err
 		}
 	}
-	if errorString == "" {
-		return nil
-	}
-	return errors.New(errorString)
+	return nil
 }
 
 func (systemDB SystemDBMock) Update(system *model.System) error {
@@ -285,23 +215,23 @@ func (systemDB SystemDBMock) Delete(name string) error {
 			}
 		} else {
 			fmt.Printf("%v\n", err.Error())
-			return errors.New(string(Unknown))
+			return &UnknownDBError{message: "Unknown error occurred"}
 		}
 	}
 	return nil
 }
 
-func initDB() *sqlx.DB {
+func initSystemDB() *sqlx.DB {
 	db, err := sqlx.Connect("sqlite3", ":memory:")
 	if err != nil {
 		panic(err)
 	}
 
-	err = CreateTables(db)
+	err = CreateSystemTables(db)
 	if err != nil {
 		return nil
 	}
-	err = CreateIndexes(db)
+	err = CreateSystemIndexes(db)
 	if err != nil {
 		return nil
 	}
@@ -309,7 +239,7 @@ func initDB() *sqlx.DB {
 	return db
 }
 
-func CreateTables(db *sqlx.DB) error {
+func CreateSystemTables(db *sqlx.DB) error {
 	//goland:noinspection ALL
 	systemTable := `
 		CREATE TABLE IF NOT EXISTS systems(
@@ -331,7 +261,7 @@ func CreateTables(db *sqlx.DB) error {
 	return nil
 }
 
-func CreateIndexes(db *sqlx.DB) error {
+func CreateSystemIndexes(db *sqlx.DB) error {
 	//goland:noinspection ALL
 	systemIndex := `
 		CREATE UNIQUE INDEX IF NOT EXISTS idx_system_name ON systems(name);

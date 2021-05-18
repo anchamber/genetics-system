@@ -17,7 +17,7 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-var testData = []*sm.System{
+var systemTestData = []*sm.System{
 	{Name: "doctor", Location: "tardis", Type: sm.Techniplast, Responsible: "tardis", CleaningInterval: 90, LastCleaned: time.Now()},
 	{Name: "rick", Location: "c-137", Type: sm.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
 	{Name: "morty", Location: "herry-herpson", Type: sm.Techniplast, Responsible: "rick", CleaningInterval: 90, LastCleaned: time.Now()},
@@ -122,7 +122,7 @@ func TestStreamSystems(t *testing.T) {
 		},
 	}
 
-	systemServer := service.New(db.NewMockDB(testData))
+	systemServer := service.NewSystemService(db.NewSystemDBMock(systemTestData))
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -144,7 +144,7 @@ func TestStreamSystems(t *testing.T) {
 }
 
 func TestGetSystem(t *testing.T) {
-	index := rand.Intn(len(testData))
+	index := rand.Intn(len(systemTestData))
 	testCases := []struct {
 		name          string
 		request       *systemProto.GetSystemRequest
@@ -154,10 +154,10 @@ func TestGetSystem(t *testing.T) {
 	}{
 		{
 			name:          "request existing system",
-			response:      testData[index],
+			response:      systemTestData[index],
 			expectedError: false,
 			request: &systemProto.GetSystemRequest{
-				Name: testData[index].Name,
+				Name: systemTestData[index].Name,
 			},
 		},
 		{
@@ -171,7 +171,7 @@ func TestGetSystem(t *testing.T) {
 		},
 	}
 
-	systemServer := service.New(db.NewMockDB(testData))
+	systemServer := service.NewSystemService(db.NewSystemDBMock(systemTestData))
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -238,7 +238,7 @@ func TestCreateSystem(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		systemServer := service.New(db.NewMockDB(testData))
+		systemServer := service.NewSystemService(db.NewSystemDBMock(systemTestData))
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -254,7 +254,7 @@ func TestCreateSystem(t *testing.T) {
 }
 
 func TestUpdateSystem(t *testing.T) {
-	system := testData[rand.Intn(len(testData))]
+	system := systemTestData[rand.Intn(len(systemTestData))]
 	testCases := []struct {
 		name          string
 		request       *systemProto.UpdateSystemRequest
@@ -336,7 +336,7 @@ func TestUpdateSystem(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		systemServer := service.New(db.NewMockDB(testData))
+		systemServer := service.NewSystemService(db.NewSystemDBMock(systemTestData))
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -352,7 +352,7 @@ func TestUpdateSystem(t *testing.T) {
 }
 
 func TestDeleteSystem(t *testing.T) {
-	system := testData[rand.Intn(len(testData))]
+	system := systemTestData[rand.Intn(len(systemTestData))]
 	testCases := []struct {
 		name             string
 		request          *systemProto.DeleteSystemRequest
@@ -375,7 +375,7 @@ func TestDeleteSystem(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			systemServer := service.New(db.NewMockDB(testData))
+			systemServer := service.NewSystemService(db.NewSystemDBMock(systemTestData))
 			_, err := systemServer.DeleteSystem(context.Background(), tc.request)
 			if validateError(t, err, tc.errorCode, tc.expectedErrorDel) {
 				return
