@@ -40,7 +40,7 @@ func TestStreamSystems(t *testing.T) {
 		{
 			name:          "request all entries",
 			request:       &systemProto.StreamSystemsRequest{},
-			responses:     db.MockDataSystems,
+			responses:     systemTestData,
 			expectedError: false,
 		},
 		{
@@ -50,7 +50,7 @@ func TestStreamSystems(t *testing.T) {
 					Limit: 2,
 				},
 			},
-			responses:     db.MockDataSystems[0:2],
+			responses:     systemTestData[0:2],
 			expectedError: false,
 		},
 		{
@@ -60,7 +60,7 @@ func TestStreamSystems(t *testing.T) {
 					Offset: 2,
 				},
 			},
-			responses:     db.MockDataSystems[2:],
+			responses:     systemTestData[2:],
 			expectedError: false,
 		},
 		{
@@ -71,7 +71,7 @@ func TestStreamSystems(t *testing.T) {
 					Limit:  1,
 				},
 			},
-			responses:     db.MockDataSystems[2:3],
+			responses:     systemTestData[2:3],
 			expectedError: false,
 		},
 		{
@@ -81,12 +81,12 @@ func TestStreamSystems(t *testing.T) {
 					{
 						Key:      "name",
 						Operator: apiProto.Operator_EQ,
-						Value:    &apiProto.Filter_S{S: db.MockDataSystems[1].Name},
+						Value:    &apiProto.Filter_S{S: systemTestData[1].Name},
 					},
 				},
 			},
 			responses: []*sm.System{
-				db.MockDataSystems[1],
+				systemTestData[1],
 			},
 			expectedError: false,
 		},
@@ -97,12 +97,12 @@ func TestStreamSystems(t *testing.T) {
 					{
 						Key:      "name",
 						Operator: apiProto.Operator_CONTAINS,
-						Value:    &apiProto.Filter_S{S: db.MockDataSystems[2].Name[1:4]},
+						Value:    &apiProto.Filter_S{S: systemTestData[2].Name[1:4]},
 					},
 				},
 			},
 			responses: []*sm.System{
-				db.MockDataSystems[2],
+				systemTestData[2],
 			},
 			expectedError: false,
 		},
@@ -113,11 +113,11 @@ func TestStreamSystems(t *testing.T) {
 					{
 						Key:      "nme",
 						Operator: apiProto.Operator_CONTAINS,
-						Value:    &apiProto.Filter_S{S: db.MockDataSystems[2].Name},
+						Value:    &apiProto.Filter_S{S: systemTestData[2].Name},
 					},
 				},
 			},
-			responses:     db.MockDataSystems,
+			responses:     systemTestData,
 			expectedError: false,
 		},
 	}

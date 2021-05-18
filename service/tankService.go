@@ -20,7 +20,7 @@ type TankService struct {
 }
 
 var tankFilterKeys = []string{
-	"number",
+	"number", "active", "size",
 }
 
 func (s *TankService) StreamTanks(in *pb.StreamTanksRequest, stream pb.TankService_StreamTanksServer) error {
@@ -50,10 +50,13 @@ func (s *TankService) StreamTanks(in *pb.StreamTanksRequest, stream pb.TankServi
 		}
 	}
 
-	data, _ := s.db.Select(db.Options{
+	data, err := s.db.Select(db.Options{
 		Pageination: paginationSettings,
 		Filters:     filterSettings,
 	})
+	if err != nil {
+		fmt.Printf(err.Error())
+	}
 	for _, tank := range data {
 		if err := stream.Send(mapToTankResponse(tank)); err != nil {
 			fmt.Printf("%v\n", err)

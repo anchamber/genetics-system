@@ -34,7 +34,7 @@ func NewSystemDBMock(initialData []*model.System) SystemDBMock {
 	for _, system := range initialData {
 		err := mock.Insert(system)
 		if err != nil {
-			return SystemDBMock{}
+			panic(err)
 		}
 	}
 

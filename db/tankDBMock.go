@@ -28,7 +28,7 @@ func NewTankDBMock(initialData []*model.Tank) TankDBMock {
 	for _, tank := range initialData {
 		err := mock.Insert(tank)
 		if err != nil {
-			return TankDBMock{}
+			panic(err)
 		}
 	}
 
@@ -36,7 +36,7 @@ func NewTankDBMock(initialData []*model.Tank) TankDBMock {
 }
 
 func (tankDB TankDBMock) Select(options Options) ([]*model.Tank, error) {
-	selectStatement := fmt.Sprintf("SELECT id, tank, number, active, size, fish_count FROM tanks %s %s;", options.createFilterClause(), options.createPaginationClause())
+	selectStatement := fmt.Sprintf("SELECT id, number, system, active, size, fish_count FROM tanks %s %s;", options.createFilterClause(), options.createPaginationClause())
 	// fmt.Println(selectStatement)
 	filterValues := options.createFilterMap()
 	rows, err := tankDB.DB.NamedQuery(selectStatement, filterValues)
@@ -55,7 +55,7 @@ func (tankDB TankDBMock) Select(options Options) ([]*model.Tank, error) {
 	var data []*model.Tank
 	for rows.Next() {
 		var entry model.Tank
-		err = rows.Scan(&entry.ID, &entry.System, &entry.Number, &entry.Active, &entry.Size, &entry.FishCount)
+		err = rows.Scan(&entry.ID, &entry.Number, &entry.System, &entry.Active, &entry.Size, &entry.FishCount)
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +68,7 @@ func (tankDB TankDBMock) Select(options Options) ([]*model.Tank, error) {
 func (tankDB TankDBMock) SelectByNumber(number uint32) (*model.Tank, error) {
 	//goland:noinspection ALL
 	selectStatement := `
-		SELECT tank, number, active, size, fish_count
+		SELECT id, number, system, active, size, fish_count
 		FROM tanks
 		WHERE number = $1;
 	`
@@ -88,7 +88,7 @@ func (tankDB TankDBMock) SelectByNumber(number uint32) (*model.Tank, error) {
 			fmt.Printf(fmt.Sprintf("failed closing rows %v\n", err))
 		}
 	}(rows)
-	err = rows.Scan(&entry.ID, &entry.System, &entry.Number, &entry.Active, &entry.Size, &entry.FishCount)
+	err = rows.Scan(&entry.ID, &entry.Number, &entry.System, &entry.Active, &entry.Size, &entry.FishCount)
 	if err != nil {
 		return nil, err
 	}
@@ -99,8 +99,8 @@ func (tankDB TankDBMock) SelectByNumber(number uint32) (*model.Tank, error) {
 func (tankDB TankDBMock) Insert(tank *model.Tank) error {
 	//goland:noinspection ALL
 	insertStatement := `
-		INSERT INTO tanks (tank, number, active, size, fish_count)
-			VALUES (?, ?, ?, ?, ?, ?);
+		INSERT INTO tanks (number, system, active, size, fish_count)
+			VALUES (?, ?, ?, ?, ?);
 	`
 	tx, err := tankDB.DB.Begin()
 	if err != nil {
@@ -120,7 +120,7 @@ func (tankDB TankDBMock) Insert(tank *model.Tank) error {
 		}
 	}(statement)
 
-	_, err = statement.Exec(tank.ID, tank.System, tank.Number, tank.Active, tank.Size, tank.FishCount)
+	_, err = statement.Exec(tank.Number, tank.System, tank.Active, tank.Size, tank.FishCount)
 	if err != nil {
 		fmt.Printf("failed to execute statement\n")
 		if sqliteErr, ok := err.(sqlite3.Error); ok {
@@ -150,8 +150,8 @@ func (tankDB TankDBMock) Update(tank *model.Tank) error {
 	//goland:noinspection ALL
 	insertStatement := `
 		UPDATE tanks 
-			SET tank = $1, number = $2, active = $3, size = $4, fish_count = $5
-			WHERE name = $1;
+			SET number = $1, system = $2, active = $3, size = $4, fish_count = $5
+			WHERE number = $1;
 	`
 	tx, err := tankDB.DB.Begin()
 	if err != nil {
@@ -171,7 +171,7 @@ func (tankDB TankDBMock) Update(tank *model.Tank) error {
 		}
 	}(statement)
 
-	_, err = statement.Exec(tank.ID, tank.System, tank.Number, tank.Active, tank.Size, tank.FishCount)
+	_, err = statement.Exec(tank.Number, tank.System, tank.Active, tank.Size, tank.FishCount)
 	if err != nil {
 		fmt.Printf("failed to execute statement\n")
 		return err
@@ -236,7 +236,7 @@ func CreateTankTables(db *sqlx.DB) error {
 		CREATE TABLE IF NOT EXISTS tanks(
 			id					INTEGER	PRIMARY KEY AUTOINCREMENT,
 			number				INT UNIQUE,
-			tank				string,
+			system				string,
 			active				bit ,
 			size				INT,
 			fish_count 			INT

@@ -37,7 +37,7 @@ func TestStreamTanks(t *testing.T) {
 		{
 			name:          "request all entries",
 			request:       &tankProto.StreamTanksRequest{},
-			responses:     db.MockDataTanks,
+			responses:     tankTestData,
 			expectedError: false,
 		},
 		{
@@ -47,7 +47,7 @@ func TestStreamTanks(t *testing.T) {
 					Limit: 2,
 				},
 			},
-			responses:     db.MockDataTanks[0:2],
+			responses:     tankTestData[0:2],
 			expectedError: false,
 		},
 		{
@@ -57,7 +57,7 @@ func TestStreamTanks(t *testing.T) {
 					Offset: 2,
 				},
 			},
-			responses:     db.MockDataTanks[2:],
+			responses:     tankTestData[2:],
 			expectedError: false,
 		},
 		{
@@ -68,7 +68,7 @@ func TestStreamTanks(t *testing.T) {
 					Limit:  1,
 				},
 			},
-			responses:     db.MockDataTanks[2:3],
+			responses:     tankTestData[2:3],
 			expectedError: false,
 		},
 		{
@@ -76,28 +76,14 @@ func TestStreamTanks(t *testing.T) {
 			request: &tankProto.StreamTanksRequest{
 				Filters: []*apiProto.Filter{
 					{
-						Key:      "name",
+						Key:      "number",
 						Operator: apiProto.Operator_EQ,
+						Value:    &apiProto.Filter_I{I: int64(tankTestData[1].Number)},
 					},
 				},
 			},
 			responses: []*sm.Tank{
-				db.MockDataTanks[1],
-			},
-			expectedError: false,
-		},
-		{
-			name: "request with name filter CONTAINS",
-			request: &tankProto.StreamTanksRequest{
-				Filters: []*apiProto.Filter{
-					{
-						Key:      "name",
-						Operator: apiProto.Operator_CONTAINS,
-					},
-				},
-			},
-			responses: []*sm.Tank{
-				db.MockDataTanks[2],
+				tankTestData[1],
 			},
 			expectedError: false,
 		},
@@ -111,7 +97,7 @@ func TestStreamTanks(t *testing.T) {
 					},
 				},
 			},
-			responses:     db.MockDataTanks,
+			responses:     tankTestData,
 			expectedError: false,
 		},
 	}
@@ -138,7 +124,7 @@ func TestStreamTanks(t *testing.T) {
 }
 
 func TestGetTank(t *testing.T) {
-	index := rand.Intn(len(tankTestData))
+	tank := tankTestData[rand.Intn(len(tankTestData))]
 	testCases := []struct {
 		name          string
 		request       *tankProto.GetTankRequest
@@ -148,9 +134,11 @@ func TestGetTank(t *testing.T) {
 	}{
 		{
 			name:          "request existing tank",
-			response:      tankTestData[index],
+			response:      tank,
 			expectedError: false,
-			request:       &tankProto.GetTankRequest{},
+			request: &tankProto.GetTankRequest{
+				Number: tank.Number,
+			},
 		},
 		{
 			name:          "request none existing tank",
@@ -190,21 +178,25 @@ func TestCreateTank(t *testing.T) {
 			name:          "create valid tank",
 			response:      tank,
 			expectedError: false,
-			request:       &tankProto.CreateTankRequest{},
+			request: &tankProto.CreateTankRequest{
+				Number:    tank.Number,
+				System:    tank.System,
+				Active:    tank.Active,
+				Size:      tank.Size,
+				FishCount: tank.FishCount,
+			},
 		},
 		{
-			name:          "create tank with invalid name",
+			name:          "create tank with invalid number",
 			response:      nil,
 			expectedError: true,
-			request:       &tankProto.CreateTankRequest{},
-			errorCode:     codes.InvalidArgument,
-		},
-		{
-			name:          "create tank with invalid cleaning interval",
-			response:      nil,
-			expectedError: true,
-			request:       &tankProto.CreateTankRequest{},
-			errorCode:     codes.InvalidArgument,
+			request: &tankProto.CreateTankRequest{
+				Number:    0,
+				System:    tank.System,
+				Active:    tank.Active,
+				Size:      tank.Size,
+				FishCount: tank.FishCount},
+			errorCode: codes.InvalidArgument,
 		},
 	}
 
@@ -260,8 +252,10 @@ func TestDeleteTank(t *testing.T) {
 		errorCode        codes.Code
 	}{
 		{
-			name:             "delete existing tank",
-			request:          &tankProto.DeleteTankRequest{},
+			name: "delete existing tank",
+			request: &tankProto.DeleteTankRequest{
+				Number: tank.Number,
+			},
 			expectedErrorDel: false,
 			expectedErrorGet: true,
 			errorCode:        codes.NotFound,
