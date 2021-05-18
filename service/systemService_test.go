@@ -17,12 +17,7 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-var systemTestData = []*sm.System{
-	{Name: "doctor", Location: "tardis", Type: sm.Techniplast, Responsible: "tardis", CleaningInterval: 90, LastCleaned: time.Now()},
-	{Name: "rick", Location: "c-137", Type: sm.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
-	{Name: "morty", Location: "herry-herpson", Type: sm.Techniplast, Responsible: "rick", CleaningInterval: 90, LastCleaned: time.Now()},
-	{Name: "obi", Location: "high_ground", Type: sm.Techniplast, Responsible: "", CleaningInterval: 90, LastCleaned: time.Now()},
-}
+var systemTestData = db.MockDataSystems
 
 var testSystemsToCreate = []*sm.System{
 	{Name: "clara", Location: "london", Type: sm.Glass, Responsible: "doctor", CleaningInterval: 50, LastCleaned: time.Now().Add(time.Hour * 24 * 49)},

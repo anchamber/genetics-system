@@ -15,12 +15,7 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-var tankTestData = []*sm.Tank{
-	{Number: 1, System: systemTestData[0].Name, Active: true, Size: 20, FishCount: 42},
-	{Number: 2, System: systemTestData[0].Name, Active: true, Size: 20, FishCount: 19},
-	{Number: 3, System: systemTestData[0].Name, Active: false, Size: 15, FishCount: 4},
-	{Number: 4, System: systemTestData[0].Name, Active: false, Size: 10, FishCount: 42},
-}
+var tankTestData = db.MockDataTanks
 
 var testTanksToCreate = []*sm.Tank{
 	{Number: 11, System: systemTestData[1].Name, Active: true, Size: 10, FishCount: 42},

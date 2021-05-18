@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math/rand"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/mattn/go-sqlite3"
@@ -15,7 +16,12 @@ type TankDBMock struct {
 	DB *sqlx.DB
 }
 
-var MockDataTanks = []*model.Tank{}
+var MockDataTanks = []*model.Tank{
+	{Number: 1, System: MockDataSystems[rand.Intn(len(MockDataSystems))].Name, Active: true, Size: 20, FishCount: 42},
+	{Number: 2, System: MockDataSystems[rand.Intn(len(MockDataSystems))].Name, Active: true, Size: 20, FishCount: 19},
+	{Number: 3, System: MockDataSystems[rand.Intn(len(MockDataSystems))].Name, Active: false, Size: 15, FishCount: 4},
+	{Number: 4, System: MockDataSystems[rand.Intn(len(MockDataSystems))].Name, Active: false, Size: 10, FishCount: 42},
+}
 
 func NewTankDBMock(initialData []*model.Tank) TankDBMock {
 	if initialData == nil {
