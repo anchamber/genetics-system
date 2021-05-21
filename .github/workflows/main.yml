@@ -41,5 +41,5 @@ jobs:
         uses: docker/build-push-action@v2.4.0
         with:
           push: true
-          tags: ${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:latest,${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:${{ github.sha }}
+          tags: ${{ DOCKER_REPO }}/${{ DOCKER_IMAGE_NAME }}:latest,${DOCKER_REPO}/${DOCKER_IMAGE_NAME}:${{ github.sha }}
         
